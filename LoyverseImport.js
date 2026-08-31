@@ -33,13 +33,24 @@ function uploadLoyverseFile(payload, sessionToken) {
 
   const csvText = blob.getDataAsString('UTF-8');
 
-  return importLoyverseCsv_(csvText, {
-    fileName: payload.fileName,
-    branchId: payload.branchId || 'AUTO',
-    reportDate: payload.reportDate || today_(),
-    sourceFileId: storedFile.getId(),
-    sessionToken: sessionToken
-  });
+  // Every import is a read-modify-write over whole tables. Two managers
+  // uploading at once would each compute their merge against a stale snapshot
+  // and the second write would silently discard the first.
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) {
+    throw new Error('هناك عملية استيراد جارية. أعد المحاولة بعد قليل.');
+  }
+  try {
+    return importLoyverseCsv_(csvText, {
+      fileName: payload.fileName,
+      branchId: payload.branchId || 'AUTO',
+      reportDate: payload.reportDate || today_(),
+      sourceFileId: storedFile.getId(),
+      sessionToken: sessionToken
+    });
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 
@@ -385,146 +396,153 @@ function findInventoryBranchColumns_(originalHeaders, normalizedHeaders) {
 }
 
 
-function importReceiptsByItem_(
-  headers,
-  rows,
-  batchId,
-  meta
-) {
-  const existingItemKeys = new Set(
-    sheetToObjects_(ORTEC.SHEETS.RECEIPT_ITEMS)
-      .map(row => String(row.item_key || ''))
-  );
+/**
+ * Import a Loyverse "Receipts by Item" export idempotently.
+ *
+ * THE UNIT OF IDEMPOTENCY IS THE RECEIPT, not the file and not the line.
+ *
+ * File-hash deduplication alone is not enough: two different exports routinely
+ * contain overlapping business records (any re-export whose date range overlaps
+ * an earlier one). The previous implementation appended any line whose item_key
+ * was unseen while skipping receipts whose receipt_key already existed, so an
+ * overlapping import grew LoyverseReceiptItems while LoyverseReceipts kept stale
+ * totals — the two tables silently diverged with no error anywhere (F-08).
+ *
+ * The strategy now:
+ *   1. Parse every line and group it under its receipt.
+ *   2. Compare each incoming receipt against what is stored, by fingerprint.
+ *      - absent   -> insert the receipt and all its lines
+ *      - identical-> keep the STORED rows untouched (a true no-op, so batch_id
+ *                    and created_at of the original import survive)
+ *      - differing-> refresh: the incoming lines replace that receipt's lines
+ *        wholesale, so a corrected receipt converges rather than accumulating
+ *   3. Receipts not mentioned by the file are preserved exactly as they are.
+ *   4. Derive every receipt row from the merged item set, so parent totals
+ *      cannot disagree with their lines by construction.
+ *
+ * Because receipts are derived rather than merged, re-running the same logical
+ * dataset always produces the same final state, and a half-completed write is
+ * repaired simply by running the import again.
+ */
+function importReceiptsByItem_(headers, rows, batchId, meta) {
+  const parsed = parseReceiptItemRows_(headers, rows, batchId);
 
-  const existingReceiptKeys = new Set(
-    sheetToObjects_(ORTEC.SHEETS.RECEIPTS)
-      .map(row => String(row.receipt_key || ''))
-  );
+  const existingItems = sheetToObjects_(ORTEC.SHEETS.RECEIPT_ITEMS);
+  const existingReceipts = sheetToObjects_(ORTEC.SHEETS.RECEIPTS);
 
-  const itemRows = [];
-  const receiptMap = {};
+  const plan = planReceiptMerge_(existingItems, parsed.items);
 
   const stats = {
-    inserted: 0,
-    duplicates: 0,
-    errors: 0,
-    receiptsInserted: 0
+    inserted: plan.stats.itemsInserted,
+    duplicates: parsed.stats.inFileRepeats,
+    errors: parsed.stats.errors,
+    receiptsInserted: plan.stats.receiptsInserted,
+    receiptsRefreshed: plan.stats.receiptsRefreshed,
+    receiptsUnchanged: plan.stats.receiptsUnchanged,
+    receiptsPreserved: plan.stats.receiptsPreserved,
+    itemsRefreshed: plan.stats.itemsRefreshed,
+    itemsPreserved: plan.stats.itemsPreserved,
+    dateCoverage: parsed.stats.dateCoverage
   };
 
-  rows.forEach(row => {
-    try {
-      if (isEmptyRow_(row)) {
-        return;
-      }
+  // Nothing changed: skip both writes entirely rather than rewriting the sheets
+  // with identical content. This is what makes re-importing the same logical
+  // dataset a genuine no-op.
+  if (!plan.stats.receiptsInserted && !plan.stats.receiptsRefreshed) {
+    stats.noChanges = true;
+    return stats;
+  }
 
+  const receiptRows = buildReceiptsFromItems_(plan.items, existingReceipts, parsed.receiptMeta, batchId);
+
+  // Items first, then the receipts derived from them. Both are guarded and
+  // backed up. If the second write fails the tables are momentarily out of
+  // step, but the state is self-healing: re-running the import (or
+  // reconcileReceiptTotals_) recomputes receipts from whatever items exist.
+  replaceAllObjectsGuarded_(ORTEC.SHEETS.RECEIPT_ITEMS, plan.items, {
+    minRows: 1, maxShrinkRatio: 0, backupLabel: 'receipt_items', requireBackup: true
+  });
+  replaceAllObjectsGuarded_(ORTEC.SHEETS.RECEIPTS, receiptRows, {
+    minRows: 1, maxShrinkRatio: 0, backupLabel: 'receipts', requireBackup: true
+  });
+
+  return stats;
+}
+
+/**
+ * Parse raw CSV rows into item records carrying stable keys.
+ *
+ * The line-level business key deliberately excludes the measures (quantity,
+ * net sales, cost, profit). The old key hashed them in, which meant an edited
+ * or corrected line produced a NEW key and was appended alongside the stale
+ * one, and two legitimately identical lines on one receipt collapsed into a
+ * single row — silent data loss. Identity is now
+ * receipt + sku + item name + variant + modifiers + occurrence, where
+ * occurrence distinguishes repeated identical lines within the same receipt.
+ * Occurrence is assigned in file order, but since repeated identical lines are
+ * interchangeable the resulting KEY SET is stable regardless of row order.
+ */
+function parseReceiptItemRows_(headers, rows, batchId) {
+  const items = [];
+  const receiptMeta = {};
+  const occurrences = {};
+  const stats = { errors: 0, inFileRepeats: 0, dateCoverage: { earliest: null, latest: null, receipts: 0 } };
+  const dates = [];
+
+  rows.forEach(function (row) {
+    try {
+      if (isEmptyRow_(row)) return;
       const item = rowToObject_(headers, row);
 
       const receiptNumber = cleanText_(item['receipt number']);
-      const receiptDate =
-        normalizeLoyverseDate_(item.date) ||
-        meta.reportDate;
-
+      const receiptDate = normalizeLoyverseDate_(item.date) || resolveDateArg_(null);
       const branchId = normalizeLoyverseBranch_(item.store);
+      if (!receiptNumber || !branchId) { stats.errors++; return; }
+
+      const receiptKey = sha256_([receiptNumber, receiptDate, branchId].join('|'));
       const sku = cleanText_(item.sku);
       const itemName = cleanText_(item.item);
-      const category = cleanText_(item.category);
+      const variant = cleanText_(item.variant);
+      const modifiers = cleanText_(item['modifiers applied']);
+
+      const identity = [receiptKey, sku, itemName, variant, modifiers].join('|');
+      const occurrence = occurrences[identity] || 0;
+      occurrences[identity] = occurrence + 1;
+      if (occurrence > 0) stats.inFileRepeats++;
 
       const quantity = number_(item.quantity, 0);
-      const grossSales = number_(item['gross sales'], 0);
-      const discount = Math.abs(number_(item.discounts, 0));
       const netSales = number_(item['net sales'], 0);
-      const costOfGoods = number_(item['cost of goods'], 0);
-      const grossProfit = number_(item['gross profit'], 0);
-      const status = cleanText_(item.status);
-      const cashier = cleanText_(item['cashier name']);
 
-      if (!receiptNumber || !branchId) {
-        stats.errors++;
-        return;
-      }
-
-      const receiptKey = sha256_(
-        [
-          receiptNumber,
-          receiptDate,
-          branchId
-        ].join('|')
-      );
-
-      const itemKey = sha256_(
-        [
-          receiptKey,
-          sku,
-          itemName,
-          quantity,
-          netSales,
-          item.variant,
-          item['modifiers applied']
-        ].join('|')
-      );
-
-      if (existingItemKeys.has(itemKey)) {
-        stats.duplicates++;
-        return;
-      }
-
-      const unitPrice =
-        quantity !== 0
-          ? netSales / quantity
-          : netSales;
-
-      itemRows.push({
-        item_key: itemKey,
+      items.push({
+        item_key: sha256_(identity + '|' + occurrence),
         receipt_key: receiptKey,
         receipt_number: receiptNumber,
         receipt_date: receiptDate,
         branch_id: branchId,
         sku: sku,
         item_name: itemName,
-        category: category,
+        category: cleanText_(item.category),
         quantity: quantity,
-        unit_price: unitPrice,
-        gross_sales: grossSales,
-        discount: discount,
+        unit_price: quantity !== 0 ? netSales / quantity : netSales,
+        gross_sales: number_(item['gross sales'], 0),
+        discount: Math.abs(number_(item.discounts, 0)),
         net_sales: netSales,
-        cost: costOfGoods,
-        profit: grossProfit,
+        cost: number_(item['cost of goods'], 0),
+        profit: number_(item['gross profit'], 0),
         batch_id: batchId,
         created_at: nowIso_()
       });
 
-      existingItemKeys.add(itemKey);
-      stats.inserted++;
-
-      if (!receiptMap[receiptKey]) {
-        receiptMap[receiptKey] = {
-          receipt_key: receiptKey,
-          receipt_number: receiptNumber,
-          receipt_date: receiptDate,
-          branch_id: branchId,
-          employee: cashier,
+      dates.push(receiptDate);
+      if (!receiptMeta[receiptKey]) {
+        receiptMeta[receiptKey] = {
+          employee: cleanText_(item['cashier name']),
           payment_type: '',
-          gross_sales: 0,
-          discounts: 0,
-          refunds: 0,
-          net_sales: 0,
-          batch_id: batchId,
-          created_at: nowIso_()
+          refunds: 0
         };
       }
-
-      receiptMap[receiptKey].gross_sales += grossSales;
-      receiptMap[receiptKey].discounts += discount;
-      receiptMap[receiptKey].net_sales += netSales;
-
-      if (
-        String(item['receipt type'] || '').toLowerCase().includes('refund')
-      ) {
-        receiptMap[receiptKey].refunds += Math.abs(netSales);
-      }
-
-      if (status && status.toLowerCase() !== 'closed') {
-        receiptMap[receiptKey].payment_type = status;
+      if (String(item['receipt type'] || '').toLowerCase().indexOf('refund') !== -1) {
+        receiptMeta[receiptKey].refunds += Math.abs(netSales);
       }
     } catch (error) {
       stats.errors++;
@@ -532,26 +550,140 @@ function importReceiptsByItem_(
     }
   });
 
-  const receiptRows = Object.values(receiptMap)
-    .filter(receipt => !existingReceiptKeys.has(receipt.receipt_key));
-
-  stats.receiptsInserted = receiptRows.length;
-
-  appendObjectsInChunks_(
-    ORTEC.SHEETS.RECEIPT_ITEMS,
-    itemRows,
-    1000
-  );
-
-  appendObjectsInChunks_(
-    ORTEC.SHEETS.RECEIPTS,
-    receiptRows,
-    1000
-  );
-
-  return stats;
+  const sorted = dates.slice().sort();
+  stats.dateCoverage = {
+    earliest: sorted.length ? sorted[0] : null,
+    latest: sorted.length ? sorted[sorted.length - 1] : null,
+    receipts: Object.keys(receiptMeta).length
+  };
+  return { items: items, receiptMeta: receiptMeta, stats: stats };
 }
 
+/** Group item rows by their receipt key. */
+function groupByReceipt_(items) {
+  const out = {};
+  (items || []).forEach(function (item) {
+    const key = String(item.receipt_key || '');
+    (out[key] = out[key] || []).push(item);
+  });
+  return out;
+}
+
+/**
+ * Fingerprint of a receipt's line set INCLUDING measures, so a corrected
+ * receipt is detected as changed even though its line identities are stable.
+ * Sorted, so file row order never affects the comparison.
+ */
+function receiptFingerprint_(items) {
+  return (items || []).map(function (i) {
+    return [i.item_key, Number(i.quantity) || 0, Number(i.net_sales) || 0,
+            Number(i.gross_sales) || 0, Number(i.discount) || 0,
+            Number(i.cost) || 0, Number(i.profit) || 0].join(':');
+  }).sort().join('|');
+}
+
+/**
+ * Merge incoming lines into the stored set, receipt by receipt.
+ * Pure function: no sheet access, which is what makes it directly testable.
+ */
+function planReceiptMerge_(existingItems, incomingItems) {
+  const existingByReceipt = groupByReceipt_(existingItems);
+  const incomingByReceipt = groupByReceipt_(incomingItems);
+  const merged = [];
+  const stats = {
+    receiptsInserted: 0, receiptsRefreshed: 0, receiptsUnchanged: 0, receiptsPreserved: 0,
+    itemsInserted: 0, itemsRefreshed: 0, itemsUnchanged: 0, itemsPreserved: 0
+  };
+
+  // Receipts the file does not mention are preserved byte-for-byte.
+  Object.keys(existingByReceipt).forEach(function (key) {
+    if (incomingByReceipt[key]) return;
+    existingByReceipt[key].forEach(function (item) { merged.push(item); });
+    stats.receiptsPreserved++;
+    stats.itemsPreserved += existingByReceipt[key].length;
+  });
+
+  Object.keys(incomingByReceipt).forEach(function (key) {
+    const incoming = incomingByReceipt[key];
+    const existing = existingByReceipt[key];
+    if (!existing) {
+      incoming.forEach(function (item) { merged.push(item); });
+      stats.receiptsInserted++;
+      stats.itemsInserted += incoming.length;
+      return;
+    }
+    if (receiptFingerprint_(existing) === receiptFingerprint_(incoming)) {
+      // Identical: keep the STORED rows so batch_id/created_at survive.
+      existing.forEach(function (item) { merged.push(item); });
+      stats.receiptsUnchanged++;
+      stats.itemsUnchanged += existing.length;
+      return;
+    }
+    // Changed: the incoming line set replaces this receipt's lines wholesale.
+    incoming.forEach(function (item) { merged.push(item); });
+    stats.receiptsRefreshed++;
+    stats.itemsRefreshed += incoming.length;
+  });
+
+  return { items: merged, stats: stats };
+}
+
+/**
+ * Derive every receipt row from the merged item set, so a parent's totals can
+ * never disagree with its lines. Receipt-level attributes that items do not
+ * carry (cashier, payment type, refunds) come from the file when present and
+ * are otherwise preserved from the stored receipt, so no schema change is
+ * required and nothing is lost.
+ */
+function buildReceiptsFromItems_(items, existingReceipts, receiptMeta, batchId) {
+  const existingByKey = {};
+  (existingReceipts || []).forEach(function (r) { existingByKey[String(r.receipt_key || '')] = r; });
+  const grouped = groupByReceipt_(items);
+  const out = [];
+
+  Object.keys(grouped).forEach(function (key) {
+    const lines = grouped[key];
+    const first = lines[0];
+    const prior = existingByKey[key] || {};
+    const meta = (receiptMeta || {})[key] || {};
+    out.push({
+      receipt_key: key,
+      receipt_number: first.receipt_number,
+      receipt_date: first.receipt_date,
+      branch_id: first.branch_id,
+      employee: meta.employee || prior.employee || '',
+      payment_type: meta.payment_type || prior.payment_type || '',
+      gross_sales: sumField_(lines, 'gross_sales'),
+      discounts: sumField_(lines, 'discount'),
+      refunds: meta.refunds != null ? meta.refunds : (Number(prior.refunds) || 0),
+      net_sales: sumField_(lines, 'net_sales'),
+      batch_id: prior.batch_id || batchId,
+      created_at: prior.created_at || nowIso_()
+    });
+  });
+
+  // A stored receipt with no items at all is kept: it is historical data whose
+  // lines were never imported, and dropping it would lose information.
+  Object.keys(existingByKey).forEach(function (key) {
+    if (!grouped[key]) out.push(existingByKey[key]);
+  });
+
+  return out;
+}
+
+/**
+ * Repair path: recompute every receipt from the stored items. Safe to run at
+ * any time; used after a half-completed import and by the verification report.
+ */
+function reconcileReceiptTotals_() {
+  const items = sheetToObjects_(ORTEC.SHEETS.RECEIPT_ITEMS);
+  const receipts = sheetToObjects_(ORTEC.SHEETS.RECEIPTS);
+  const rebuilt = buildReceiptsFromItems_(items, receipts, {}, 'reconcile');
+  replaceAllObjectsGuarded_(ORTEC.SHEETS.RECEIPTS, rebuilt, {
+    minRows: 1, maxShrinkRatio: 0, backupLabel: 'reconcile', requireBackup: true
+  });
+  return { receipts: rebuilt.length };
+}
 
 function appendObjectsInChunks_(sheetName, objects, chunkSize) {
   if (!objects || !objects.length) {

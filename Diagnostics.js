@@ -6,17 +6,18 @@
  * spreadsheet contents cannot be inspected from outside the project, so these
  * questions have to be answered by code running inside it.
  *
- * Run `ortecDiagnostics` from the Apps Script editor and copy the logged JSON.
+ * Run `ortecDiagnostics_` from the Apps Script editor and copy the logged JSON.
+ * The trailing underscore makes it unreachable from google.script.run.
  *
  * Nothing here returns password hashes, salts, session tokens or any other
  * secret: user rows are reduced to counts and roles only.
  */
 
-function ortecDiagnostics() {
-  // Editor-only: this reads every table. It is a global function, so without
-  // this gate it would be callable anonymously via google.script.run on a web
-  // app deployed to ANYONE.
-  assertEditorContext_('ortecDiagnostics');
+function ortecDiagnostics_() {
+  // Editor-only. The trailing underscore is what guarantees it: this reads
+  // every table, and as a plain global it would have been callable anonymously
+  // through the ANYONE web app. assertEditorContext_ is defence in depth.
+  assertEditorContext_('ortecDiagnostics_');
   const report = {
     generatedAt: nowIso_(),
     timezone: { config: ORTEC.TZ, manifestNote: 'compare against appsscript.json timeZone' },

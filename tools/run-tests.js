@@ -66,6 +66,10 @@ const Utilities = {
   base64Decode: () => { throw new Error('SAFETY VIOLATION: test decoded an upload'); }
 };
 
+const LockService = {
+  getScriptLock: () => ({ tryLock: () => true, releaseLock: () => undefined })
+};
+
 const CacheService = {
   getScriptCache: () => ({
     get: () => null,          // no session exists, so protected calls must throw
@@ -95,6 +99,7 @@ const Session = {
 const sandbox = {
   Utilities,
   CacheService,
+  LockService,
   ScriptApp,
   PropertiesService,
   Session,
@@ -135,7 +140,7 @@ sandbox.__ortecRestoreHostileStubs__ = () => {
 const SOURCES = [
   'Config.js', 'Auth.js', 'DataRepository.js', 'Dashboard.js', 'Expenses.js',
   'InventoryAnalysis.js', 'LoyverseImport.js', 'Reports.js', 'Setup.js',
-  'Tasks.js', 'Utils.js', 'WebApp.js', 'Tests.js'
+  'Tasks.js', 'Utils.js', 'WebApp.js', 'Diagnostics.js', 'Recovery.js', 'Tests.js'
 ];
 
 const context = vm.createContext(sandbox);

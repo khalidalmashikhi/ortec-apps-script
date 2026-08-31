@@ -1,10 +1,14 @@
 /**
- * Editor-only. This rewrites every sheet header, seeds the owner account and
- * reinstalls triggers; it was previously reachable anonymously through the
- * ANYONE web app, which also leaked the spreadsheet id and the seeded password.
+ * Editor-only. Rewrites every sheet header, seeds the owner account and
+ * reinstalls triggers.
+ *
+ * The trailing underscore is the protection that matters: Apps Script refuses
+ * to expose such functions to google.script.run at all, so this cannot be
+ * reached from the web app regardless of who is calling or what their session
+ * looks like. assertEditorContext_ stays as defence in depth.
  */
-function setupOrTec() {
-  assertEditorContext_('setupOrTec');
+function setupOrTec_() {
+  assertEditorContext_('setupOrTec_');
   const props = PropertiesService.getScriptProperties();
   let ss;
   const current = props.getProperty('SPREADSHEET_ID');
@@ -35,9 +39,9 @@ function setupOrTec() {
   };
 }
 
-function upgradeOrTecV2() {
-  assertEditorContext_('upgradeOrTecV2');
-  return setupOrTec();
+function upgradeOrTecV2_() {
+  assertEditorContext_('upgradeOrTecV2_');
+  return setupOrTec_();
 }
 
 function ensureSheetHeaders_(sheet, requiredHeaders) {
@@ -56,6 +60,16 @@ function ensureSheetHeaders_(sheet, requiredHeaders) {
     return allHeaders.map(function(header) { return object[header] !== undefined ? object[header] : ''; });
   });
 
+  // This clears the sheet and rewrites it from memory. Anything that fails in
+  // between — the execution time limit, a transient Sheets error — would leave
+  // the sheet permanently blank, so take a verified backup first. Same
+  // fail-closed rule as the catalogue replacement: no backup, no clear.
+  if (normalizedRows.length) {
+    const asObjects = normalizedRows.map(function (row) {
+      return allHeaders.reduce(function (o, header, index) { o[header] = row[index]; return o; }, {});
+    });
+    createVerifiedBackup_(sheet.getName(), asObjects, 'schema_migration');
+  }
   sheet.clearContents();
   sheet.getRange(1, 1, 1, allHeaders.length).setValues([allHeaders]);
   if (normalizedRows.length) sheet.getRange(2, 1, normalizedRows.length, allHeaders.length).setValues(normalizedRows);
@@ -130,12 +144,8 @@ function ensureDriveFolders_() {
 }
 
 /** Editor-only: deletes and recreates this project's scheduled triggers. */
-function installDailyTriggers() {
-  assertEditorContext_('installDailyTriggers');
-  return installDailyTriggers_();
-}
-
 function installDailyTriggers_() {
+  assertEditorContext_('installDailyTriggers_');
   ScriptApp.getProjectTriggers().filter(function(t) {
     return ['sendDailyAccountingReport','checkMissingLoyverseUpload','sendTaskReminders'].indexOf(t.getHandlerFunction()) !== -1;
   }).forEach(function(t) { ScriptApp.deleteTrigger(t); });

@@ -536,9 +536,13 @@ function test_adversarialAuthorization_(results) {
   // Internal/setup functions must refuse a web context. In the harness the
   // active user is anonymous and the effective user is the owner, which is
   // exactly the anonymous-web-app shape.
-  ortecAssertThrows_(results, 'setupOrTec refuses a web context', function () { setupOrTec(); });
-  ortecAssertThrows_(results, 'upgradeOrTecV2 refuses a web context', function () { upgradeOrTecV2(); });
-  ortecAssertThrows_(results, 'installDailyTriggers refuses a web context', function () { installDailyTriggers(); });
+  ortecAssertThrows_(results, 'setupOrTec_ refuses a web context', function () { setupOrTec_(); });
+  ortecAssertThrows_(results, 'upgradeOrTecV2_ refuses a web context', function () { upgradeOrTecV2_(); });
+  ortecAssertThrows_(results, 'installDailyTriggers_ refuses a web context', function () { installDailyTriggers_(); });
+  ortecAssertThrows_(results, 'ortecDiagnostics_ refuses a web context', function () { ortecDiagnostics_(); });
+  ortecAssert_(results, 'setupOrTec is not a global at all', typeof globalThis.setupOrTec === 'undefined');
+  ortecAssert_(results, 'ortecDiagnostics is not a global at all', typeof globalThis.ortecDiagnostics === 'undefined');
+  ortecAssert_(results, 'runAllTests is not a global at all', typeof globalThis.runAllTests === 'undefined');
 
   // Role escalation and branch forgery are decided by pure functions, so they
   // can be asserted directly without a live session.
@@ -551,6 +555,227 @@ function test_adversarialAuthorization_(results) {
     scopeBranch_({ branch_id: 'ITTIN' }, 'ALL'), 'ITTIN');
   ortecAssertEquals_(results, 'forged branch object is coerced, not trusted',
     scopeBranch_({ branch_id: 'ITTIN' }, { branch_id: 'ALL' }), 'ITTIN');
+}
+
+// ------------------------------- F-08: idempotent receipt import (cases A-H) ---
+
+/** Build an item record the way parseReceiptItemRows_ does, for fixtures. */
+function ortecItem_(receiptKey, sku, occurrence, measures) {
+  const identity = [receiptKey, sku, 'Item ' + sku, '', ''].join('|');
+  const m = measures || {};
+  return {
+    item_key: sha256_(identity + '|' + (occurrence || 0)),
+    receipt_key: receiptKey,
+    receipt_number: 'R' + receiptKey,
+    receipt_date: m.date || '2026-07-20',
+    branch_id: 'AWQAD',
+    sku: sku, item_name: 'Item ' + sku, category: 'C',
+    quantity: m.quantity == null ? 1 : m.quantity,
+    unit_price: 10,
+    gross_sales: m.gross == null ? 10 : m.gross,
+    discount: 0,
+    net_sales: m.net == null ? 10 : m.net,
+    cost: 4, profit: 6,
+    batch_id: m.batch || 'batch-original',
+    created_at: m.createdAt || '2026-07-20T10:00:00'
+  };
+}
+
+function ortecReceiptOf_(items, key) {
+  return items.filter(function (i) { return i.receipt_key === key; });
+}
+
+function test_idempotentReceiptImport_(results) {
+  // A stored dataset: two receipts, one with two lines.
+  const stored = [
+    ortecItem_('r1', 'A', 0), ortecItem_('r1', 'B', 0),
+    ortecItem_('r2', 'C', 0)
+  ];
+
+  // --- A. Exact same file re-imported ---
+  let plan = planReceiptMerge_(stored, stored.map(function (i) {
+    return Object.assign({}, i, { batch_id: 'batch-2', created_at: '2026-08-31T00:00:00' });
+  }));
+  ortecAssertEquals_(results, 'A: same file inserts nothing', plan.stats.receiptsInserted, 0);
+  ortecAssertEquals_(results, 'A: same file refreshes nothing', plan.stats.receiptsRefreshed, 0);
+  ortecAssertEquals_(results, 'A: same file marks both receipts unchanged', plan.stats.receiptsUnchanged, 2);
+  ortecAssertEquals_(results, 'A: row count is unchanged', plan.items.length, 3);
+  ortecAssert_(results, 'A: stored batch_id survives a no-op re-import',
+    plan.items.every(function (i) { return i.batch_id === 'batch-original'; }));
+
+  // --- B. Same transactions arriving in a DIFFERENT file (different order,
+  //        different batch) must still be recognised as the same records ---
+  const reordered = [ortecItem_('r2','C',0), ortecItem_('r1','B',0), ortecItem_('r1','A',0)]
+    .map(function (i) { return Object.assign({}, i, { batch_id: 'batch-3' }); });
+  plan = planReceiptMerge_(stored, reordered);
+  ortecAssertEquals_(results, 'B: reordered identical data changes nothing', plan.stats.receiptsUnchanged, 2);
+  ortecAssertEquals_(results, 'B: no duplicate item rows are produced', plan.items.length, 3);
+  ortecAssertEquals_(results, 'B: no receipts are refreshed', plan.stats.receiptsRefreshed, 0);
+
+  // --- C. Partial date overlap: r2 already stored, r3 is new ---
+  const partial = [ortecItem_('r2','C',0), ortecItem_('r3','D',0,{date:'2026-07-21'})];
+  plan = planReceiptMerge_(stored, partial);
+  ortecAssertEquals_(results, 'C: partial overlap inserts only the new receipt', plan.stats.receiptsInserted, 1);
+  ortecAssertEquals_(results, 'C: overlapping receipt is untouched', plan.stats.receiptsUnchanged, 1);
+  ortecAssertEquals_(results, 'C: unmentioned receipt is preserved', plan.stats.receiptsPreserved, 1);
+  ortecAssertEquals_(results, 'C: total rows = 3 stored + 1 new', plan.items.length, 4);
+  ortecAssertEquals_(results, 'C: the two-line receipt keeps both lines',
+    ortecReceiptOf_(plan.items, 'r1').length, 2);
+
+  // --- D. Complete date overlap, nothing new ---
+  plan = planReceiptMerge_(stored, [ortecItem_('r1','A',0), ortecItem_('r1','B',0), ortecItem_('r2','C',0)]);
+  ortecAssertEquals_(results, 'D: full overlap is a complete no-op', plan.stats.receiptsUnchanged, 2);
+  ortecAssertEquals_(results, 'D: full overlap adds no rows', plan.items.length, 3);
+
+  // --- E. New line appended to a previously imported receipt: that receipt is
+  //        refreshed wholesale rather than accumulating a stale copy ---
+  const grown = [ortecItem_('r1','A',0), ortecItem_('r1','B',0), ortecItem_('r1','E',0)];
+  plan = planReceiptMerge_(stored, grown);
+  ortecAssertEquals_(results, 'E: the changed receipt is refreshed', plan.stats.receiptsRefreshed, 1);
+  ortecAssertEquals_(results, 'E: refreshed receipt has exactly the new line set',
+    ortecReceiptOf_(plan.items, 'r1').length, 3);
+  ortecAssertEquals_(results, 'E: the untouched receipt is preserved', plan.stats.receiptsPreserved, 1);
+  ortecAssertEquals_(results, 'E: no stale duplicate rows remain', plan.items.length, 4);
+
+  // A corrected measure on an existing line refreshes rather than duplicating.
+  const corrected = [ortecItem_('r1','A',0,{net:99}), ortecItem_('r1','B',0), ortecItem_('r2','C',0)];
+  plan = planReceiptMerge_(stored, corrected);
+  ortecAssertEquals_(results, 'E: a corrected amount refreshes the receipt', plan.stats.receiptsRefreshed, 1);
+  ortecAssertEquals_(results, 'E: correction does not duplicate the line',
+    ortecReceiptOf_(plan.items, 'r1').length, 2);
+  ortecAssertEquals_(results, 'E: the corrected value wins',
+    ortecReceiptOf_(plan.items, 'r1').filter(function (i) { return i.sku === 'A'; })[0].net_sales, 99);
+
+  // --- F. Duplicate line inside one CSV: two identical lines are DISTINCT
+  //        records (occurrence 0 and 1), not silently collapsed ---
+  const twoIdentical = [ortecItem_('r4','X',0), ortecItem_('r4','X',1)];
+  ortecAssert_(results, 'F: repeated identical lines get distinct keys',
+    twoIdentical[0].item_key !== twoIdentical[1].item_key);
+  plan = planReceiptMerge_([], twoIdentical);
+  ortecAssertEquals_(results, 'F: both repeated lines are kept', plan.items.length, 2);
+  plan = planReceiptMerge_(twoIdentical, twoIdentical);
+  ortecAssertEquals_(results, 'F: re-importing repeated lines is still a no-op', plan.items.length, 2);
+  ortecAssertEquals_(results, 'F: repeated-line receipt is unchanged on re-import', plan.stats.receiptsUnchanged, 1);
+
+  // --- G. Import failure midway leaves the stored state untouched, because the
+  //        merge is computed in full before anything is written ---
+  ortecAssertThrows_(results, 'G: a malformed merge result cannot be written', function () {
+    replaceAllObjectsGuarded_(ORTEC.SHEETS.RECEIPT_ITEMS, null, { requireBackup: true });
+  });
+  const beforeCount = stored.length;
+  try { planReceiptMerge_(stored, null); } catch (e) { /* tolerated */ }
+  ortecAssertEquals_(results, 'G: planning never mutates the stored array', stored.length, beforeCount);
+  ortecAssert_(results, 'G: planning returns a new array, not the stored one',
+    planReceiptMerge_(stored, []).items !== stored);
+
+  // --- H. Parent receipt / item consistency is derived, not merged ---
+  const merged = planReceiptMerge_(stored, grown).items;
+  const receipts = buildReceiptsFromItems_(merged, [], {}, 'b1');
+  ortecAssertEquals_(results, 'H: one receipt row per distinct receipt key', receipts.length, 2);
+  receipts.forEach(function (r) {
+    const lines = ortecReceiptOf_(merged, r.receipt_key);
+    ortecAssertEquals_(results, `H: ${r.receipt_key} net_sales equals the sum of its lines`,
+      Number(r.net_sales).toFixed(3), sumField_(lines, 'net_sales').toFixed(3));
+    ortecAssertEquals_(results, `H: ${r.receipt_key} gross_sales equals the sum of its lines`,
+      Number(r.gross_sales).toFixed(3), sumField_(lines, 'gross_sales').toFixed(3));
+  });
+
+  // A stored receipt whose lines were never imported is preserved, not dropped.
+  const orphan = { receipt_key: 'r9', receipt_number: 'R9', receipt_date: '2026-06-01',
+                   branch_id: 'SAADA', employee: '', payment_type: '', gross_sales: 5,
+                   discounts: 0, refunds: 0, net_sales: 5, batch_id: 'old', created_at: 'x' };
+  const withOrphan = buildReceiptsFromItems_(merged, [orphan], {}, 'b1');
+  ortecAssert_(results, 'H: a receipt with no imported lines is preserved',
+    withOrphan.some(function (r) { return r.receipt_key === 'r9'; }));
+
+  // Receipt-level attributes that items do not carry survive a refresh.
+  const priorReceipt = { receipt_key: 'r1', employee: 'Fatima', payment_type: 'CASH',
+                         refunds: 2, batch_id: 'old-batch', created_at: '2026-07-20T09:00:00' };
+  const rebuilt = buildReceiptsFromItems_(merged, [priorReceipt], {}, 'b2')
+    .filter(function (r) { return r.receipt_key === 'r1'; })[0];
+  ortecAssertEquals_(results, 'H: cashier survives a refresh', rebuilt.employee, 'Fatima');
+  ortecAssertEquals_(results, 'H: original batch_id survives a refresh', rebuilt.batch_id, 'old-batch');
+  ortecAssertEquals_(results, 'H: original created_at survives a refresh', rebuilt.created_at, '2026-07-20T09:00:00');
+
+  // --- Convergence: running the same logical dataset repeatedly must settle ---
+  let state = stored;
+  for (let pass = 0; pass < 3; pass++) state = planReceiptMerge_(state, grown).items;
+  ortecAssertEquals_(results, 'convergence: three passes give a stable row count', state.length, 4);
+  const finalPass = planReceiptMerge_(state, grown);
+  ortecAssertEquals_(results, 'convergence: a fourth pass changes nothing', finalPass.stats.receiptsRefreshed, 0);
+  ortecAssertEquals_(results, 'convergence: fingerprints are order-independent',
+    receiptFingerprint_(ortecReceiptOf_(state, 'r1')),
+    receiptFingerprint_(ortecReceiptOf_(state, 'r1').slice().reverse()));
+}
+
+// ------------------------------- 1.6: ingestion freshness + recovery safety ---
+
+function ortecBatch_(type, uploadedAt, status) {
+  return { batch_id: 'b', report_type: type, status: status || 'COMPLETED', uploaded_at: uploadedAt,
+           period_date: String(uploadedAt).slice(0, 10) };
+}
+
+/** Mirrors getIngestionStatus_ classification without touching a sheet. */
+function classifyFeedAge_(ageHours, overdueHours, criticalHours) {
+  if (ageHours == null) return 'NEVER';
+  if (ageHours >= criticalHours) return 'CRITICAL';
+  if (ageHours >= overdueHours) return 'OVERDUE';
+  return 'OK';
+}
+
+function test_ingestionFreshness_(results) {
+  ortecAssertEquals_(results, 'a fresh feed is OK', classifyFeedAge_(3, 36, 72), 'OK');
+  ortecAssertEquals_(results, 'a feed just under the threshold is OK', classifyFeedAge_(35, 36, 72), 'OK');
+  ortecAssertEquals_(results, 'a day-and-a-half old feed is OVERDUE', classifyFeedAge_(36, 36, 72), 'OVERDUE');
+  ortecAssertEquals_(results, 'a three-day old feed is CRITICAL', classifyFeedAge_(72, 36, 72), 'CRITICAL');
+  ortecAssertEquals_(results, 'the real outage would read CRITICAL', classifyFeedAge_(24 * 44, 36, 72), 'CRITICAL');
+  ortecAssertEquals_(results, 'a feed that never ran reads NEVER', classifyFeedAge_(null, 36, 72), 'NEVER');
+
+  // The overall state is the worst of the two feeds, so a fresh catalogue can
+  // never mask stale sales.
+  const order = ['OK', 'OVERDUE', 'CRITICAL', 'NEVER'];
+  const worst = function (a, b) { return order[Math.max(order.indexOf(a), order.indexOf(b))]; };
+  ortecAssertEquals_(results, 'stale sales are not masked by a fresh catalogue', worst('CRITICAL', 'OK'), 'CRITICAL');
+  ortecAssertEquals_(results, 'a never-imported feed dominates', worst('OK', 'NEVER'), 'NEVER');
+  ortecAssertEquals_(results, 'both fresh means OK', worst('OK', 'OK'), 'OK');
+}
+
+function test_recoverySafety_(results) {
+  // The confirmation token binds to file content AND the computed plan, so a
+  // token from one preview cannot approve a different import.
+  const tokenFor = function (hash, rows, inserted, refreshed) {
+    return sha256_([hash, rows, inserted, refreshed].join('|')).slice(0, 16);
+  };
+  const base = tokenFor('hashA', 100, 10, 2);
+  ortecAssertEquals_(results, 'the same plan yields the same token', tokenFor('hashA', 100, 10, 2), base);
+  ortecAssert_(results, 'a different file yields a different token', tokenFor('hashB', 100, 10, 2) !== base);
+  ortecAssert_(results, 'a changed row count yields a different token', tokenFor('hashA', 101, 10, 2) !== base);
+  ortecAssert_(results, 'a changed insert count yields a different token', tokenFor('hashA', 100, 11, 2) !== base);
+  ortecAssert_(results, 'a changed refresh count yields a different token', tokenFor('hashA', 100, 10, 3) !== base);
+  ortecAssertEquals_(results, 'token is a short stable hex string', base.length, 16);
+
+  // Recovery entry points must not be reachable from the web app.
+  ortecAssert_(results, 'recovery preview is not a callable global',
+    typeof globalThis.ortecPreviewReceiptsRecovery === 'undefined');
+  ortecAssert_(results, 'recovery commit is not a callable global',
+    typeof globalThis.ortecCommitReceiptsRecovery === 'undefined');
+  ortecAssertThrows_(results, 'recovery preview refuses a web context', function () {
+    ortecPreviewReceiptsRecovery_('any-file');
+  });
+  ortecAssertThrows_(results, 'recovery commit refuses a web context', function () {
+    ortecCommitReceiptsRecovery_('any-file', 'any-token');
+  });
+
+  // Export Items must never be used to fabricate historical snapshots.
+  const source = ortecReadSourceForTests_('Recovery.js');
+  if (source === null) {
+    ortecAssert_(results, 'recovery source check skipped (Apps Script runtime)', true);
+  } else {
+    ortecAssert_(results, 'recovery never writes InventorySnapshots',
+      source.indexOf('SHEETS.INVENTORY') === -1);
+    ortecAssert_(results, 'recovery documents the export-items limitation',
+      source.indexOf('manufactured') !== -1 && source.indexOf('invented history') !== -1);
+  }
 }
 
 // ---------------------------------------- server-surface coverage invariant ---
@@ -567,13 +792,15 @@ function test_serverSurfaceCoverage_(results) {
   }
   const fs = require('fs');
   const PUBLIC_BY_DESIGN = ['login', 'doGet', 'include'];
+  const MUST_BE_PRIVATE = ['setupOrTec', 'upgradeOrTecV2', 'installDailyTriggers',
+                           'ortecDiagnostics', 'runAllTests'];
   const GATES = [
     'requireCapability_(', 'requireScheduledOrCapability_(', 'requireRole_(',
     'assertEditorContext_(', 'resolveSessionUser_(', 'ORTEC_INCLUDABLE_'
   ];
   const files = ['Auth.js','Config.js','Dashboard.js','DataRepository.js','Diagnostics.js',
-                 'Expenses.js','InventoryAnalysis.js','LoyverseImport.js','Reports.js',
-                 'Setup.js','Tasks.js','Tests.js','Utils.js','WebApp.js'];
+                 'Expenses.js','InventoryAnalysis.js','LoyverseImport.js','Recovery.js',
+                 'Reports.js','Setup.js','Tasks.js','Tests.js','Utils.js','WebApp.js'];
   const ungated = [];
   let scanned = 0;
 
@@ -597,17 +824,31 @@ function test_serverSurfaceCoverage_(results) {
     ungated.length === 0, `ungated: ${ungated.join(', ')}`);
   ortecAssert_(results, 'the surface scan actually found functions', scanned > 20,
     `only ${scanned} scanned`);
+
+  // Setup, diagnostic and test entry points must not exist as plain globals at
+  // all: an underscore suffix is the only protection Apps Script enforces
+  // structurally, rather than one that depends on runtime identity.
+  const exposed = [];
+  files.forEach(function (file) {
+    let source;
+    try { source = fs.readFileSync(file, 'utf8'); } catch (e) { return; }
+    MUST_BE_PRIVATE.forEach(function (name) {
+      if (new RegExp('^function ' + name + '\\s*\\(', 'm').test(source)) exposed.push(`${name} (${file})`);
+    });
+  });
+  ortecAssert_(results, 'setup/diagnostic/test entry points are not callable globals',
+    exposed.length === 0, `exposed: ${exposed.join(', ')}`);
 }
 
 // ------------------------------------------------------------------ runner ---
 
 /**
- * Editor-only entry point. Tests.js ships with the project, so runAllTests is a
- * global function and would otherwise be callable anonymously through the web
- * app; it does no harm but it is still exposed surface and burns quota.
+ * Editor-only entry point. Tests.js ships with the project, so a plain global
+ * runAllTests would have been callable anonymously through the web app. The
+ * trailing underscore removes it from the google.script.run surface entirely.
  */
-function runAllTests() {
-  assertEditorContext_('runAllTests');
+function runAllTests_() {
+  assertEditorContext_('runAllTests_');
   return ortecRunAllTests_();
 }
 
@@ -625,7 +866,10 @@ function ortecRunAllTests_() {
     ['1.5 fail-closed backup', test_failClosedBackup_],
     ['1.5 adversarial authorization', test_adversarialAuthorization_],
     ['branch normalization', test_branchNormalization_],
-    ['1.5 server-surface coverage', test_serverSurfaceCoverage_]
+    ['1.5 server-surface coverage', test_serverSurfaceCoverage_],
+    ['1.6 F-08 idempotent receipt import', test_idempotentReceiptImport_],
+    ['1.6 ingestion freshness', test_ingestionFreshness_],
+    ['1.6 recovery safety', test_recoverySafety_]
   ];
 
   suites.forEach(function (suite) {

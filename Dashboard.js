@@ -32,6 +32,7 @@ function getDashboardData_(date, branchId) {
   };
 
   return {date:selectedDate,branchId:selectedBranch,sales:sales,orders:receipts.length,
+    ingestion:getIngestionStatus_(),
     averageOrder:receipts.length?sales/receipts.length:0,
     expenses:expenseTotal,
     paymentBreakdown:paymentBreakdown,
@@ -69,6 +70,52 @@ function getOperationsAnalysis_(date, branchId) {
     branchPerformance:Object.values(byBranch).sort((a,b)=>b.sales-a.sales),
     topItems:Object.values(byItem).sort((a,b)=>b.sales-a.sales).slice(0,10),
     lowStock:lowStock.sort((a,b)=>Number(a.stock)-Number(b.stock)).slice(0,20)
+  };
+}
+
+/**
+ * Freshness of the Loyverse feed, per report type.
+ *
+ * A dashboard built on stale sales data looks exactly like a quiet day. This
+ * is what made an eight-week ingestion outage invisible: the numbers were
+ * plausible, just old. Every dashboard payload now carries how old the feed is
+ * and whether that is acceptable, so "no data" can never be mistaken for
+ * "no sales".
+ */
+function getIngestionStatus_() {
+  const overdueHours = Number(getSetting_('INGESTION_OVERDUE_HOURS', 36)) || 36;
+  const criticalHours = Number(getSetting_('INGESTION_CRITICAL_HOURS', 72)) || 72;
+
+  let batches = [];
+  try { batches = sheetToObjects_(ORTEC.SHEETS.IMPORT_BATCHES); } catch (e) { batches = []; }
+
+  function newestFor(type) {
+    const matching = batches
+      .filter(function (b) { return String(b.report_type) === type && String(b.status || '').indexOf('COMPLETED') === 0; })
+      .map(function (b) { return String(b.uploaded_at || ''); })
+      .filter(Boolean)
+      .sort();
+    if (!matching.length) return { lastImport: null, ageHours: null, state: 'NEVER' };
+    const last = matching[matching.length - 1];
+    const ageHours = Math.max(0, Math.round((Date.now() - new Date(last).getTime()) / 3600000));
+    let state = 'OK';
+    if (ageHours >= criticalHours) state = 'CRITICAL';
+    else if (ageHours >= overdueHours) state = 'OVERDUE';
+    return { lastImport: last, ageHours: ageHours, ageDays: Math.floor(ageHours / 24), state: state };
+  }
+
+  const receipts = newestFor(ORTEC.IMPORT_TYPES.RECEIPTS_BY_ITEM);
+  const catalogue = newestFor(ORTEC.IMPORT_TYPES.ITEM_EXPORT);
+  const worst = [receipts.state, catalogue.state]
+    .map(function (s) { return ['OK', 'OVERDUE', 'CRITICAL', 'NEVER'].indexOf(s); });
+  const overall = ['OK', 'OVERDUE', 'CRITICAL', 'NEVER'][Math.max.apply(null, worst)];
+
+  return {
+    receipts: receipts,
+    catalogue: catalogue,
+    overall: overall,
+    stale: overall !== 'OK',
+    thresholds: { overdueHours: overdueHours, criticalHours: criticalHours }
   };
 }
 

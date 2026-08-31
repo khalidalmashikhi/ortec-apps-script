@@ -232,12 +232,24 @@ function checkMissingLoyverseUpload(dateOrEvent, sessionToken){
   if(!types.has(ORTEC.IMPORT_TYPES.RECEIPTS_BY_ITEM))missing.push('Receipts by Item');
   if(!types.has(ORTEC.IMPORT_TYPES.ITEM_EXPORT))missing.push('Export Items');
   if(!missing.length)return {ok:true,missing:[]};
+  const ingestion=getIngestionStatus_();
   const recipients=getSetting_('REPORT_RECIPIENTS','');
   if(recipients){
-    const blob=createSimpleAlertPdf_('تنبيه نقص تقارير Loyverse',date,missing);
+    const detail=missing.slice();
+    if(ingestion.receipts.state!=='OK'){
+      detail.push(ingestion.receipts.lastImport
+        ? `آخر استيراد للمبيعات: ${ingestion.receipts.lastImport} (منذ ${ingestion.receipts.ageDays} يومًا)`
+        : 'لم يتم استيراد أي تقرير مبيعات مطلقًا.');
+    }
+    if(ingestion.catalogue.state!=='OK'){
+      detail.push(ingestion.catalogue.lastImport
+        ? `آخر استيراد للمخزون: ${ingestion.catalogue.lastImport} (منذ ${ingestion.catalogue.ageDays} يومًا)`
+        : 'لم يتم استيراد أي تقرير مخزون مطلقًا.');
+    }
+    const blob=createSimpleAlertPdf_('تنبيه نقص تقارير Loyverse',date,detail);
     MailApp.sendEmail({to:recipients,subject:`تنبيه: تقارير Loyverse غير مكتملة - ${date}`,body:'التفاصيل مرفقة PDF',attachments:[blob],name:'OrTec OS'});
   }
-  return {ok:false,missing:missing};
+  return {ok:false,missing:missing,ingestion:ingestion};
 }
 
 function createSimpleAlertPdf_(title,date,lines){
