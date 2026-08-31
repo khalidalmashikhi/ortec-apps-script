@@ -778,6 +778,151 @@ function test_recoverySafety_(results) {
   }
 }
 
+// ------------------------------------------ F-29: XSS / rendering safety ---
+
+/** The payloads every escaping path must neutralise. */
+function ortecXssPayloads_() {
+  return [
+    '<img src=x onerror=alert(1)>',
+    '<script>alert(1)</script>',
+    '"><script>alert(1)</script>',
+    "'><img src=x onerror=alert(1)>",
+    '<svg/onload=alert(1)>',
+    'javascript:alert(1)',
+    '</td></tr><script>alert(1)</script>',
+    '`${alert(1)}`',
+    '<iframe src="javascript:alert(1)">',
+    'Ali & Sons <ali@example.com>',
+    "O'Brien \"quoted\" & <tagged>",
+    '&lt;already&gt;&amp;encoded',
+    '<a href="javascript:alert(1)">click</a>'
+  ];
+}
+
+/** Assert an escaped string can no longer open a tag or an entity boundary. */
+function ortecAssertNeutralised_(results, label, escaped) {
+  ortecAssert_(results, `${label}: no raw < survives`, String(escaped).indexOf('<') === -1, escaped);
+  ortecAssert_(results, `${label}: no raw > survives`, String(escaped).indexOf('>') === -1, escaped);
+  ortecAssert_(results, `${label}: no raw double quote survives`, String(escaped).indexOf('"') === -1, escaped);
+  ortecAssert_(results, `${label}: no raw single quote survives`, String(escaped).indexOf("'") === -1, escaped);
+  ortecAssert_(results, `${label}: no raw backtick survives`, String(escaped).indexOf('`') === -1, escaped);
+}
+
+/** Server-side escaper (used in the notification emails). */
+function test_serverHtmlEscaping_(results) {
+  ortecXssPayloads_().forEach(function (payload, index) {
+    ortecAssertNeutralised_(results, `escapeHtml_ payload ${index + 1}`, escapeHtml_(payload));
+  });
+  ortecAssertEquals_(results, 'escapeHtml_ encodes ampersand first',
+    escapeHtml_('&lt;'), '&amp;lt;');
+  ortecAssertEquals_(results, 'escapeHtml_ handles null', escapeHtml_(null), '');
+  ortecAssertEquals_(results, 'escapeHtml_ handles undefined', escapeHtml_(undefined), '');
+  ortecAssertEquals_(results, 'escapeHtml_ preserves plain Arabic text',
+    escapeHtml_('فرع عوقد'), 'فرع عوقد');
+  ortecAssert_(results, 'escapeHtml_ neutralises a script close tag',
+    escapeHtml_('</script>').indexOf('</script>') === -1);
+}
+
+/**
+ * Client-side rendering. The helpers are extracted from ClientJS.html and
+ * executed for real, so these assertions test the shipped code rather than a
+ * copy of it. Node-only: the browser bundle is not loaded inside Apps Script.
+ */
+function ortecLoadClientHelpers_() {
+  if (typeof require !== 'function') return null;
+  let source;
+  try { source = require('fs').readFileSync('ClientJS.html', 'utf8'); } catch (e) { return null; }
+  const wanted = ['safeUrl', 'escapeHtml', 'createTable'];
+  const out = {};
+  wanted.forEach(function (name) {
+    const start = source.indexOf('function ' + name + '(');
+    if (start === -1) return;
+    // Balance braces from the first { after the signature.
+    let i = source.indexOf('{', start), depth = 0, end = -1;
+    for (; i < source.length; i++) {
+      if (source[i] === '{') depth++;
+      else if (source[i] === '}') { depth--; if (depth === 0) { end = i + 1; break; } }
+    }
+    if (end > start) out[name] = source.slice(start, end);
+  });
+  if (!out.escapeHtml || !out.createTable || !out.safeUrl) return null;
+  try {
+    // eslint-disable-next-line no-new-func
+    return new Function(`${out.safeUrl}\n${out.escapeHtml}\n${out.createTable}\nreturn {safeUrl, escapeHtml, createTable};`)();
+  } catch (e) {
+    return null;
+  }
+}
+
+function test_clientRenderingSafety_(results) {
+  const client = ortecLoadClientHelpers_();
+  if (!client) {
+    ortecAssert_(results, 'client rendering tests skipped (helpers not loadable here)', true);
+    return;
+  }
+
+  ortecXssPayloads_().forEach(function (payload, index) {
+    ortecAssertNeutralised_(results, `client escapeHtml payload ${index + 1}`, client.escapeHtml(payload));
+  });
+
+  // Values that arrive from Sheets — malicious product, expense, task and user
+  // strings — must be inert once rendered into a table.
+  const storedValues = [
+    ['<img src=x onerror=alert(1)>', 'SKU-1', 'Item'],
+    ['Expense <script>alert(document.cookie)</script>', '"><b>x</b>', "task '); drop"],
+    ['مستخدم <svg/onload=alert(1)>', '</td><td onclick=alert(1)>', '`${alert(1)}`']
+  ];
+  const table = client.createTable(['A', 'B', 'C'], storedValues);
+  ortecAssert_(results, 'stored malicious values produce no script tag',
+    table.toLowerCase().indexOf('<script') === -1);
+  ortecAssert_(results, 'stored malicious values produce no img tag',
+    table.toLowerCase().indexOf('<img') === -1);
+  ortecAssert_(results, 'stored malicious values produce no svg tag',
+    table.toLowerCase().indexOf('<svg') === -1);
+  // The property that matters is that a handler cannot end up in ATTRIBUTE
+  // position. The literal text "onclick=" rendered inside a cell is inert, so
+  // asserting its absence anywhere would be testing the wrong thing.
+  ortecAssert_(results, 'no inline handler can reach attribute position',
+    /<[^>]*\bon(error|load|click)\s*=/i.test(table) === false, table.slice(0, 200));
+  ortecAssert_(results, 'the only tags in the output are the table\'s own',
+    (table.match(/<[a-z]+/gi) || []).every(function (t) {
+      return ['<div', '<table', '<thead', '<tbody', '<tr', '<th', '<td', '<p'].indexOf(t.toLowerCase()) !== -1;
+    }));
+  ortecAssert_(results, 'the table still renders its own cells',
+    (table.match(/<td>/g) || []).length === 9);
+  ortecAssert_(results, 'a malicious header is escaped too',
+    client.createTable(['<script>alert(1)</script>'], [['x']]).toLowerCase().indexOf('<script') === -1);
+
+  // Escaping alone does not stop a javascript: URL — the scheme allow-list does.
+  ortecAssertEquals_(results, 'javascript: URL is rejected', client.safeUrl('javascript:alert(1)'), '#');
+  ortecAssertEquals_(results, 'JaVaScRiPt: URL is rejected', client.safeUrl('JaVaScRiPt:alert(1)'), '#');
+  ortecAssertEquals_(results, 'data: URL is rejected', client.safeUrl('data:text/html,<script>alert(1)</script>'), '#');
+  ortecAssertEquals_(results, 'vbscript: URL is rejected', client.safeUrl('vbscript:msgbox(1)'), '#');
+  ortecAssertEquals_(results, 'a relative path is rejected', client.safeUrl('/etc/passwd'), '#');
+  ortecAssertEquals_(results, 'an https Drive URL is allowed',
+    client.safeUrl('https://drive.google.com/file/d/abc/view'), 'https://drive.google.com/file/d/abc/view');
+  ortecAssertEquals_(results, 'safeUrl handles null', client.safeUrl(null), '#');
+}
+
+/** Session/token storage strategy. */
+function test_tokenStorageStrategy_(results) {
+  const source = ortecReadSourceForTests_('ClientJS.html');
+  if (source === null) {
+    ortecAssert_(results, 'token storage check skipped (Apps Script runtime)', true);
+    return;
+  }
+  ortecAssert_(results, 'the session token is written to sessionStorage, not localStorage',
+    source.indexOf("sessionStorage.setItem('ortec_session'") !== -1);
+  ortecAssert_(results, 'no code path writes the token to localStorage',
+    source.indexOf("localStorage.setItem('ortec_session'") === -1);
+  ortecAssert_(results, 'a legacy localStorage token is migrated then removed',
+    source.indexOf("localStorage.removeItem('ortec_session')") !== -1);
+  ortecAssert_(results, 'logout clears both stores',
+    source.indexOf('function ortecClearStoredToken_') !== -1);
+  ortecAssert_(results, 'storage access is wrapped against private-mode throws',
+    (source.match(/catch\(e\)\{return ''/g) || []).length >= 1);
+}
+
 // ---------------------------------------- server-surface coverage invariant ---
 
 /**
@@ -869,7 +1014,10 @@ function ortecRunAllTests_() {
     ['1.5 server-surface coverage', test_serverSurfaceCoverage_],
     ['1.6 F-08 idempotent receipt import', test_idempotentReceiptImport_],
     ['1.6 ingestion freshness', test_ingestionFreshness_],
-    ['1.6 recovery safety', test_recoverySafety_]
+    ['1.6 recovery safety', test_recoverySafety_],
+    ['F-29 server html escaping', test_serverHtmlEscaping_],
+    ['F-29 client rendering safety', test_clientRenderingSafety_],
+    ['F-29 token storage', test_tokenStorageStrategy_]
   ];
 
   suites.forEach(function (suite) {

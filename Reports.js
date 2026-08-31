@@ -186,8 +186,8 @@ function renderReportPdf_(p, user) {
 function buildReportEmailHtml_(p) {
   return `<div dir="rtl" style="font-family:Arial;max-width:760px">
     <h2>${escapeHtml_(p.titleAr)} — ${escapeHtml_(p.periodLabel)}</h2>
-    <p><b>المبيعات:</b> ${fmt_(p.sales)} &nbsp; <b>الربح:</b> ${fmt_(p.grossProfit)} &nbsp; <b>المصروفات:</b> ${fmt_(p.expenses)}</p>
-    <p><b>صافي الربح التقديري:</b> ${fmt_(p.netProfit)} &nbsp; <b>هامش الربح:</b> ${p.margin.toFixed(1)}%</p>
+    <p><b>المبيعات:</b> ${escapeHtml_(fmt_(p.sales))} &nbsp; <b>الربح:</b> ${escapeHtml_(fmt_(p.grossProfit))} &nbsp; <b>المصروفات:</b> ${escapeHtml_(fmt_(p.expenses))}</p>
+    <p><b>صافي الربح التقديري:</b> ${escapeHtml_(fmt_(p.netProfit))} &nbsp; <b>هامش الربح:</b> ${Number(p.margin).toFixed(1)}%</p>
     <p>التفاصيل الكاملة مرفقة بصيغة PDF.</p></div>`;
 }
 

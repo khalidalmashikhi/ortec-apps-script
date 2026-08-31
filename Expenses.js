@@ -78,7 +78,7 @@ function sendExpenseNotification_(expense) {
   MailApp.sendEmail({
     to:recipients, subject:`OrTec — مصروف ${Number(expense.amount).toFixed(3)} ر.ع — ${branchLabel_(expense.branch_id)}`,
     body:'تفاصيل المصروف مرفقة بصيغة PDF.',
-    htmlBody:`<div dir="rtl" style="font-family:Arial"><h2>تم تسجيل مصروف</h2><p><b>المبلغ:</b> ${fmt_(expense.amount)}</p><p><b>المكان:</b> ${branchLabel_(expense.branch_id)}</p><p><b>البيان:</b> ${escapeHtml_(expense.description)}</p><p>التقرير الكامل مرفق PDF.</p></div>`,
+    htmlBody:`<div dir="rtl" style="font-family:Arial"><h2>تم تسجيل مصروف</h2><p><b>المبلغ:</b> ${escapeHtml_(fmt_(expense.amount))}</p><p><b>المكان:</b> ${escapeHtml_(branchLabel_(expense.branch_id))}</p><p><b>البيان:</b> ${escapeHtml_(expense.description)}</p><p>التقرير الكامل مرفق PDF.</p></div>`,
     attachments:attachments, name:'OrTec OS'
   });
 }
