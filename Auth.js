@@ -177,6 +177,12 @@ function scopeBranch_(user, requestedBranchId) {
  * user is empty for anonymous visitors while the effective user is the owner;
  * run from the script editor the two match.
  */
+function isEditorContext_(activeEmail, effectiveEmail) {
+  const active = String(activeEmail || '');
+  const effective = String(effectiveEmail || '');
+  return !!active && active === effective;
+}
+
 function assertEditorContext_(operation) {
   let active = '', effective = '';
   try {
@@ -185,7 +191,7 @@ function assertEditorContext_(operation) {
   } catch (e) {
     active = '';
   }
-  if (!active || active !== effective) {
+  if (!isEditorContext_(active, effective)) {
     throw new Error(`العملية ${operation} متاحة من محرر Apps Script فقط.`);
   }
   return effective;

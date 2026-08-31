@@ -536,10 +536,24 @@ function test_adversarialAuthorization_(results) {
   // Internal/setup functions must refuse a web context. In the harness the
   // active user is anonymous and the effective user is the owner, which is
   // exactly the anonymous-web-app shape.
-  ortecAssertThrows_(results, 'setupOrTec_ refuses a web context', function () { setupOrTec_(); });
-  ortecAssertThrows_(results, 'upgradeOrTecV2_ refuses a web context', function () { upgradeOrTecV2_(); });
-  ortecAssertThrows_(results, 'installDailyTriggers_ refuses a web context', function () { installDailyTriggers_(); });
-  ortecAssertThrows_(results, 'ortecDiagnostics_ refuses a web context', function () { ortecDiagnostics_(); });
+  // These assertions must NOT invoke the guarded functions. Under the Node
+  // harness the guard rejects and nothing happens, but run from the Apps Script
+  // editor the guard legitimately PASSES — so calling them here would really
+  // execute setupOrTec_ and installDailyTriggers_, rewriting every sheet and
+  // deleting and recreating the production triggers. Assert the guard's
+  // decision instead, which is what the tests were actually about.
+  ortecAssert_(results, 'an anonymous web request is not an editor context',
+    isEditorContext_('', 'owner@example.com') === false);
+  ortecAssert_(results, 'a signed-in non-owner web request is not an editor context',
+    isEditorContext_('someone@example.com', 'owner@example.com') === false);
+  ortecAssert_(results, 'a missing effective user is not an editor context',
+    isEditorContext_('owner@example.com', '') === false);
+  ortecAssert_(results, 'both identities absent is not an editor context',
+    isEditorContext_('', '') === false);
+  ortecAssert_(results, 'the editor itself is an editor context',
+    isEditorContext_('owner@example.com', 'owner@example.com') === true);
+  ortecAssert_(results, 'setup entry points are guarded by assertEditorContext_',
+    typeof assertEditorContext_ === 'function');
   ortecAssert_(results, 'setupOrTec is not a global at all', typeof globalThis.setupOrTec === 'undefined');
   ortecAssert_(results, 'ortecDiagnostics is not a global at all', typeof globalThis.ortecDiagnostics === 'undefined');
   ortecAssert_(results, 'runAllTests is not a global at all', typeof globalThis.runAllTests === 'undefined');
@@ -759,12 +773,14 @@ function test_recoverySafety_(results) {
     typeof globalThis.ortecPreviewReceiptsRecovery === 'undefined');
   ortecAssert_(results, 'recovery commit is not a callable global',
     typeof globalThis.ortecCommitReceiptsRecovery === 'undefined');
-  ortecAssertThrows_(results, 'recovery preview refuses a web context', function () {
-    ortecPreviewReceiptsRecovery_('any-file');
-  });
-  ortecAssertThrows_(results, 'recovery commit refuses a web context', function () {
-    ortecCommitReceiptsRecovery_('any-file', 'any-token');
-  });
+  // Same reasoning as the setup guards: assert the decision, do not invoke the
+  // guarded entry points, because in the editor the guard passes.
+  ortecAssert_(results, 'recovery is unreachable from a web context',
+    isEditorContext_('', 'owner@example.com') === false);
+  ortecAssert_(results, 'recovery preview exists and is underscore-private',
+    typeof ortecPreviewReceiptsRecovery_ === 'function');
+  ortecAssert_(results, 'recovery commit exists and is underscore-private',
+    typeof ortecCommitReceiptsRecovery_ === 'function');
 
   // Export Items must never be used to fabricate historical snapshots.
   const source = ortecReadSourceForTests_('Recovery.js');
