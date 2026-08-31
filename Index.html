@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head><base target="_top"><?!= include('Styles'); ?></head>
+<body>
+<section id="loginScreen" class="login-screen"><div class="login-card">
+  <img class="brand-logo login-logo" src="https://drive.google.com/thumbnail?id=13J4AbLiB7iGbMx6sNvGUirA4gLdz6GqM&sz=w1000" alt="OrTec">
+  <h1>OrTec OS</h1><p>نظام إدارة شركة الأصلي للتكنولوجيا</p>
+  <label>اسم المستخدم<input id="loginUsername" autocomplete="username" placeholder="khalid"></label>
+  <label>كلمة المرور<input id="loginPassword" type="password" autocomplete="current-password" placeholder="••••••••"></label>
+  <label class="remember"><input id="rememberMe" type="checkbox"> إبقائي مسجّلًا</label>
+  <button class="primary" onclick="submitLogin()">تسجيل الدخول</button><div id="loginError" class="error-text"></div>
+</div></section>
+<div id="appShell" class="hidden">
+<header><div class="header-brand"><img class="brand-logo" src="https://drive.google.com/thumbnail?id=13J4AbLiB7iGbMx6sNvGUirA4gLdz6GqM&sz=w1000" alt="OrTec"><strong>OrTec OS</strong><small id="version"></small></div>
+<div class="header-actions"><span id="currentUserLabel"></span><button onclick="setLang('ar')">العربية</button><button onclick="setLang('en')">English</button><button onclick="performLogout()">تسجيل الخروج</button></div></header>
+<nav id="mainNav">
+<button data-view="dashboard" onclick="showView('dashboard')">لوحة المتابعة</button><button data-view="import" onclick="showView('import')">استيراد Loyverse</button>
+<button data-view="expense" onclick="showView('expense')">المصروفات</button><button data-view="issues" onclick="showView('issues')">تنبيهات المخزون</button>
+<button data-view="tasks" onclick="showView('tasks')">المهام</button><button data-view="reports" onclick="showView('reports')">التقارير وPDF</button>
+<button data-view="users" onclick="showView('users')">المستخدمون</button></nav>
+<main>
+<section id="dashboard" class="view"></section>
+<section id="import" class="view hidden"><h2>الاستيراد اليومي من Loyverse</h2><div class="panel form-grid">
+<label>الفرع<select id="importBranch"><option value="AUTO">تلقائي من الملف</option><option value="AWQAD">فرع عوقد</option><option value="SAADA">فرع السعادة</option></select></label>
+<label>تاريخ التقرير<input id="importDate" type="date"></label><div class="wide import-note">ارفع الملفين معًا كل يوم: Receipts by Item ثم Export Items.</div>
+<label class="wide">1) تقرير الفواتير<input id="receiptsFile" type="file" accept=".csv"></label><label class="wide">2) ملف الأصناف والمخزون<input id="itemsFile" type="file" accept=".csv"></label>
+<button class="primary" onclick="uploadDailyLoyverseFiles()">رفع الملفين وتحديث التحليل</button></div><pre id="importResult"></pre></section>
+<section id="expense" class="view hidden"><h2>تسجيل مصروف</h2><div class="panel form-grid">
+<label>تاريخ المصروف<input id="exDate" type="date"></label><label>مكان المصروف<select id="exBranch"><option value="AWQAD">فرع عوقد</option><option value="SAADA">فرع السعادة</option><option value="ITTIN">مربع إتين</option><option value="OUTSIDE">خارج الفروع</option></select></label>
+<label>المبلغ<input id="exAmount" type="number" step="0.001"></label><label>التصنيف<select id="exCategory" onchange="toggleDelivery()"><option value="PURCHASE">شراء بضاعة</option><option value="OPERATING">مصروف تشغيلي</option><option value="MARKETING">تسويق</option><option value="DELIVERY">مندوب توصيل</option><option value="OTHER">أخرى</option></select></label>
+<label>طريقة الدفع<select id="exPaymentMethod"><option value="CASH">نقد</option><option value="CARD">بطاقة</option><option value="TRANSFER">تحويل بنكي</option><option value="CHEQUE">شيك</option><option value="OTHER">أخرى</option></select></label>
+<label>حالة الدفع<select id="exPaymentStatus"><option value="PAID">مدفوع</option><option value="PENDING">معلّق</option></select></label>
+<label>المستفيد<input id="exBeneficiary"></label><label>رقم الفاتورة<input id="exInvoiceNumber"></label>
+<label class="wide">البيان<textarea id="exDescription" rows="4" placeholder="مثال: شراء 15 شاحن من المورد، فاتورة رقم 5487"></textarea></label>
+<div id="deliveryFields" class="wide hidden three-cols"><label>اسم المندوب<input id="exAgent"></label><label>شركة التوصيل<input id="exCompany"></label><label>رقم الشحنة<input id="exShipment"></label></div>
+<label class="wide" id="invoiceLabel">الفاتورة أو الإيصال<input id="exInvoice" type="file" accept="image/*,.pdf" onchange="previewExpenseFile()"></label><div id="invoicePreview" class="wide file-preview hidden"></div>
+<button class="primary" onclick="submitExpense()">حفظ المصروف وإرسال PDF</button></div><pre id="expenseResult"></pre></section>
+<section id="issues" class="view hidden"></section><section id="tasks" class="view hidden"></section>
+<section id="reports" class="view hidden"><h2>التقارير والطباعة PDF</h2><div class="panel form-grid">
+<label>نوع التقرير<select id="reportType"><option value="DAILY">يومي</option><option value="WEEKLY">أسبوعي</option><option value="MONTHLY">شهري</option><option value="SALES">المبيعات</option><option value="EXPENSES">المصروفات</option><option value="INVENTORY">المخزون</option><option value="TASKS">المهام</option></select></label>
+<label>الفرع<select id="reportBranch"><option value="ALL">جميع الفروع</option><option value="AWQAD">فرع عوقد</option><option value="SAADA">فرع السعادة</option><option value="ITTIN">مربع إتين</option><option value="OUTSIDE">خارج الفروع</option></select></label>
+<label>من تاريخ<input id="reportFrom" type="date"></label><label>إلى تاريخ<input id="reportTo" type="date"></label>
+<label class="wide">إرسال إلى البريد<input id="reportEmail" type="email" placeholder="name@example.com"></label>
+<div class="wide action-row"><button class="primary" onclick="generateReportPdf()">إنشاء وفتح PDF</button><button onclick="sendReportEmail()">إرسال التقرير بالبريد PDF</button></div></div><div id="reportResult" class="result-box"></div></section>
+<section id="users" class="view hidden"></section>
+</main></div><div id="loading" class="loading hidden">جاري التنفيذ...</div><?!= include('ClientJS'); ?>
+</body></html>
