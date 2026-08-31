@@ -9,6 +9,16 @@ const ORTEC = Object.freeze({
     { id: 'SAADA', ar: 'فرع السعادة', en: 'Al Saada Branch' },
     { id: 'ITTIN', ar: 'مربع إتين', en: 'Ittin Square' }
   ],
+  IMPORT_TYPES: {
+    ITEM_EXPORT: 'ITEM_EXPORT',
+    RECEIPTS_BY_ITEM: 'RECEIPTS_BY_ITEM'
+  },
+  ROLES: ['OWNER','ADMIN','ACCOUNTANT','BRANCH_MANAGER','CASHIER','TECHNICIAN','VIEWER'],
+  IMPORT_GUARD: {
+    MIN_CATALOGUE_ROWS: 1,
+    MAX_SHRINK_RATIO: 0.5,
+    MAX_ERROR_RATIO: 0.5
+  },
   SHEETS: {
     SETTINGS: 'Settings',
     USERS: 'Users',
@@ -72,4 +82,47 @@ function today_() {
 
 function uuid_() {
   return Utilities.getUuid();
+}
+
+/**
+ * Coerce a handler argument into a yyyy-MM-dd string.
+ *
+ * Apps Script invokes a time-based trigger handler with an event object as its
+ * first argument. That object is truthy, so `date = date || today_()` kept the
+ * object and every downstream date comparison silently matched nothing. Any
+ * object, malformed string or empty value resolves to today; a well-formed
+ * yyyy-MM-dd string passes through untouched so manual calls are unaffected.
+ */
+function resolveDateArg_(value) {
+  if (value instanceof Date) {
+    return isNaN(value.getTime()) ? today_() : Utilities.formatDate(value, ORTEC.TZ, 'yyyy-MM-dd');
+  }
+  if (value && typeof value === 'object') return today_();
+  const text = String(value == null ? '' : value).trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return today_();
+  const parts = text.split('-');
+  const month = Number(parts[1]), day = Number(parts[2]);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return today_();
+  return text;
+}
+
+/**
+ * True when `value` is a genuine Apps Script trigger event object.
+ *
+ * The triggerUid is verified against this project's installed triggers, so a
+ * caller cannot forge one through google.script.run by passing a lookalike
+ * object: they would need a real trigger's unique id, which is not readable
+ * from the client.
+ */
+function isTriggerEvent_(value) {
+  if (!value || typeof value !== 'object' || value instanceof Date) return false;
+  const uid = String(value.triggerUid || '');
+  if (!uid) return false;
+  try {
+    return ScriptApp.getProjectTriggers().some(function (trigger) {
+      return String(trigger.getUniqueId()) === uid;
+    });
+  } catch (e) {
+    return false;
+  }
 }

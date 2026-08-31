@@ -1,10 +1,10 @@
 function createReportPdf(reportType, options, sessionToken) {
-  const user = getCurrentUser(sessionToken);
+  const user = requireCapability_('reports', sessionToken);
   options = options || {};
   const type = String(reportType || 'DAILY').toUpperCase();
-  const dateFrom = options.dateFrom || options.date || today_();
-  const dateTo = options.dateTo || dateFrom;
-  const branchId = options.branchId || user.branch_id || 'ALL';
+  const dateFrom = resolveDateArg_(options.dateFrom || options.date);
+  const dateTo = resolveDateArg_(options.dateTo || dateFrom);
+  const branchId = scopeBranch_(user, options.branchId || user.branch_id || 'ALL');
 
   const payload = buildReportPayload_(type, dateFrom, dateTo, branchId);
   const file = renderReportPdf_(payload, user);
@@ -21,12 +21,12 @@ function createReportPdf(reportType, options, sessionToken) {
 }
 
 function emailReportPdf(reportType, options, recipients, sessionToken) {
-  const user = getCurrentUser(sessionToken);
+  const user = requireCapability_('reports.email', sessionToken);
   options = options || {};
   const type = String(reportType || 'DAILY').toUpperCase();
-  const dateFrom = options.dateFrom || options.date || today_();
-  const dateTo = options.dateTo || dateFrom;
-  const branchId = options.branchId || user.branch_id || 'ALL';
+  const dateFrom = resolveDateArg_(options.dateFrom || options.date);
+  const dateTo = resolveDateArg_(options.dateTo || dateFrom);
+  const branchId = scopeBranch_(user, options.branchId || user.branch_id || 'ALL');
   const to = String(recipients || getSetting_('REPORT_RECIPIENTS', '')).trim();
   if (!to) throw new Error('أدخل بريد المستلم أو حدده في إعدادات النظام.');
 
@@ -36,14 +36,27 @@ function emailReportPdf(reportType, options, recipients, sessionToken) {
   const subject = `OrTec OS — ${payload.titleAr} — ${payload.periodLabel}`;
   const html = buildReportEmailHtml_(payload);
 
-  MailApp.sendEmail({
-    to: to,
-    subject: subject,
-    body: `تقرير OrTec OS مرفق بصيغة PDF: ${payload.periodLabel}`,
-    htmlBody: html,
-    attachments: [blob],
-    name: 'OrTec OS'
-  });
+  // Log both outcomes. Previously the log row was only written after a
+  // successful send, so a failed nightly report (mail quota, bad recipient)
+  // left no trace at all and error_message could never be populated.
+  try {
+    MailApp.sendEmail({
+      to: to,
+      subject: subject,
+      body: `تقرير OrTec OS مرفق بصيغة PDF: ${payload.periodLabel}`,
+      htmlBody: html,
+      attachments: [blob],
+      name: 'OrTec OS'
+    });
+  } catch (mailError) {
+    appendObject_(ORTEC.SHEETS.EMAIL_LOG, {
+      log_id: uuid_(), report_date: dateFrom, report_type: type, recipients: to,
+      pdf_file_id: file.getId(), status: 'FAILED',
+      error_message: String(mailError && mailError.message ? mailError.message : mailError),
+      sent_at: nowIso_()
+    });
+    throw mailError;
+  }
 
   appendObject_(ORTEC.SHEETS.EMAIL_LOG, {
     log_id: uuid_(), report_date: dateFrom, report_type: type, recipients: to,
@@ -66,10 +79,10 @@ function buildReportPayload_(type, dateFrom, dateTo, branchId) {
     const d = normalizeDate_(r.expense_date);
     return d >= dateFrom && d <= dateTo && (branchId === 'ALL' || r.branch_id === branchId);
   });
-  const issues = listInventoryIssues('OPEN').filter(function(r) {
+  const issues = listInventoryIssues_('OPEN').filter(function(r) {
     return branchId === 'ALL' || r.branch_id === branchId;
   });
-  const tasks = listTasks('ALL').filter(function(r) {
+  const tasks = listTasks_('ALL').filter(function(r) {
     return branchId === 'ALL' || r.branch_id === branchId || r.branch_id === 'ALL';
   });
 
@@ -178,8 +191,18 @@ function buildReportEmailHtml_(p) {
     <p>التفاصيل الكاملة مرفقة بصيغة PDF.</p></div>`;
 }
 
-function sendDailyAccountingReport(date) {
-  date = date || today_();
+/**
+ * Nightly accounting report.
+ *
+ * A time-based trigger calls this with an EVENT OBJECT, not a date. The old
+ * `date = date || today_()` kept that object, which then flowed into the
+ * report's date filters as "[object Object]" and matched no rows — every
+ * scheduled report was empty. Normalize first, and require either a genuine
+ * trigger invocation or an authorized caller.
+ */
+function sendDailyAccountingReport(dateOrEvent, sessionToken) {
+  const context = requireScheduledOrCapability_(dateOrEvent, sessionToken, 'reports.email');
+  const date = context.date;
   return emailReportPdf('DAILY', {dateFrom:date,dateTo:date,branchId:'ALL'}, getSetting_('REPORT_RECIPIENTS',''), createSystemSessionToken_());
 }
 
@@ -191,13 +214,23 @@ function createSystemSessionToken_() {
   return token;
 }
 
-function checkMissingLoyverseUpload(date){
-  date=date||today_();
+/**
+ * Nightly "did the branches upload their Loyverse exports?" check.
+ *
+ * Two defects made this alert fire every single night regardless of reality:
+ * the trigger event object was used as the date (filterByDate_ compares with
+ * ===, and an object never equals a date string, so `batches` was always
+ * empty), and the constant below was spelled ITEMS_EXPORT while the importer
+ * writes ITEM_EXPORT. Both are fixed; either one alone leaves the alert wrong.
+ */
+function checkMissingLoyverseUpload(dateOrEvent, sessionToken){
+  const context = requireScheduledOrCapability_(dateOrEvent, sessionToken, 'import');
+  const date = context.date;
   const batches=filterByDate_(ORTEC.SHEETS.IMPORT_BATCHES,'period_date',date);
-  const types=new Set(batches.map(function(b){return b.report_type;}));
+  const types=new Set(batches.map(function(b){return String(b.report_type||'');}));
   const missing=[];
-  if(!types.has('RECEIPTS_BY_ITEM'))missing.push('Receipts by Item');
-  if(!types.has('ITEMS_EXPORT'))missing.push('Export Items');
+  if(!types.has(ORTEC.IMPORT_TYPES.RECEIPTS_BY_ITEM))missing.push('Receipts by Item');
+  if(!types.has(ORTEC.IMPORT_TYPES.ITEM_EXPORT))missing.push('Export Items');
   if(!missing.length)return {ok:true,missing:[]};
   const recipients=getSetting_('REPORT_RECIPIENTS','');
   if(recipients){

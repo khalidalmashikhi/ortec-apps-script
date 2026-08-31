@@ -43,6 +43,59 @@ function replaceAllObjects_(name, objects) {
   return rows.length;
 }
 
+/**
+ * Transactional-like whole-table replace.
+ *
+ * replaceAllObjects_ clears the sheet before it writes, so a caller that hands
+ * it an incomplete dataset destroys the rows it omitted, and a failure between
+ * the clear and the write leaves the table empty. This wrapper refuses
+ * implausible replacements and snapshots the current contents first, so a bad
+ * import fails closed instead of shredding the table.
+ *
+ * options: { minRows, maxShrinkRatio, backupLabel, allowShrink }
+ */
+function replaceAllObjectsGuarded_(name, objects, options) {
+  options = options || {};
+  const rows = objects || [];
+  const minRows = options.minRows == null ? 1 : Number(options.minRows);
+
+  if (rows.length < minRows) {
+    throw new Error(`Refusing to replace ${name}: got ${rows.length} rows, expected at least ${minRows}.`);
+  }
+
+  const current = sheetToObjects_(name);
+  const maxShrinkRatio = options.maxShrinkRatio == null ? 0.5 : Number(options.maxShrinkRatio);
+  if (!options.allowShrink && current.length > 0) {
+    const floor = Math.floor(current.length * (1 - maxShrinkRatio));
+    if (rows.length < floor) {
+      throw new Error(
+        `Refusing to replace ${name}: ${rows.length} new rows would drop it from ${current.length} ` +
+        `(below the ${Math.round((1 - maxShrinkRatio) * 100)}% floor of ${floor}). ` +
+        `Re-run with allowShrink if this is intended.`
+      );
+    }
+  }
+
+  const backup = backupSheetSnapshot_(name, current, options.backupLabel);
+  const written = replaceAllObjects_(name, rows);
+  return { written: written, previousCount: current.length, backupFileId: backup };
+}
+
+/** Write a JSON snapshot of a sheet to the Backups folder. Best effort. */
+function backupSheetSnapshot_(name, rows, label) {
+  try {
+    const folderId = PropertiesService.getScriptProperties().getProperty('BACKUP_FOLDER_ID');
+    if (!folderId || !rows || !rows.length) return '';
+    const stamp = Utilities.formatDate(new Date(), ORTEC.TZ, "yyyy-MM-dd'T'HH-mm-ss");
+    const fileName = `${name}_${label || 'replace'}_${stamp}.json`;
+    const blob = Utilities.newBlob(JSON.stringify(rows), 'application/json', fileName);
+    return DriveApp.getFolderById(folderId).createFile(blob).getId();
+  } catch (e) {
+    console.error('backupSheetSnapshot_ failed for %s: %s', name, e && e.message ? e.message : e);
+    return '';
+  }
+}
+
 function findBy_(name, field, value) {
   return sheetToObjects_(name).find(r => String(r[field]) === String(value)) || null;
 }

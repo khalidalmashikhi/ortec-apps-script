@@ -1,7 +1,11 @@
 function createExpense(input, sessionToken) {
-  const user = requireRole_(['OWNER','ADMIN','ACCOUNTANT','BRANCH_MANAGER','CASHIER'], sessionToken);
+  const user = requireCapability_('expense', sessionToken);
   input = input || {};
   validateExpense_(input);
+  const ownBranch = String(user.branch_id || 'ALL');
+  if (ownBranch !== 'ALL' && ownBranch !== '' && String(input.branchId) !== ownBranch) {
+    throw new Error('لا يمكنك تسجيل مصروف على فرع آخر.');
+  }
   let fileId = '';
   if (input.invoiceBase64) {
     const bytes = Utilities.base64Decode(String(input.invoiceBase64).split(',').pop());
@@ -9,7 +13,8 @@ function createExpense(input, sessionToken) {
     fileId = DriveApp.getFolderById(PropertiesService.getScriptProperties().getProperty('EXPENSE_FOLDER_ID')).createFile(blob).getId();
   }
   const amount = Number(input.amount);
-  const limit = Number(getSetting_('EXPENSE_APPROVAL_LIMIT', 50));
+  const rawLimit = Number(getSetting_('EXPENSE_APPROVAL_LIMIT', 50));
+  const limit = isFinite(rawLimit) && rawLimit >= 0 ? rawLimit : 50;
   const status = user.role === 'OWNER' || amount <= limit ? 'APPROVED' : 'PENDING_APPROVAL';
   const id = uuid_();
   const row = {
@@ -49,13 +54,19 @@ function createDeliveryAgent_(data) {
 }
 
 function approveExpense(expenseId, sessionToken) {
-  const user=requireRole_(['OWNER','ADMIN','ACCOUNTANT'], sessionToken);
+  const user=requireCapability_('expense.approve', sessionToken);
   const old=findBy_(ORTEC.SHEETS.EXPENSES,'expense_id',expenseId); if(!old)throw new Error('المصروف غير موجود.');
   const patch={status:'APPROVED',approved_by:user.email,approved_at:nowIso_()};
   updateById_(ORTEC.SHEETS.EXPENSES,'expense_id',expenseId,patch); audit_('EXPENSE',expenseId,'APPROVE',old,Object.assign({},old,patch)); return {ok:true};
 }
 
-function listExpenses(date, branchId) {
+/** Public entry point: authenticate, then scope the branch to the session. */
+function listExpenses(date, branchId, sessionToken) {
+  const user = requireCapability_('expense', sessionToken);
+  return listExpenses_(date ? resolveDateArg_(date) : '', scopeBranch_(user, branchId));
+}
+
+function listExpenses_(date, branchId) {
   return sheetToObjects_(ORTEC.SHEETS.EXPENSES).filter(function(r){return (!date||normalizeDate_(r.expense_date)===date)&&(!branchId||branchId==='ALL'||r.branch_id===branchId);});
 }
 

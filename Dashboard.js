@@ -1,39 +1,55 @@
-function getDashboardData(date, branchId) {
+/** Public entry point: authenticate, then scope the branch to the session. */
+function getDashboardData(date, branchId, sessionToken) {
+  const user = requireCapability_('dashboard', sessionToken);
+  return getDashboardData_(resolveDateArg_(date), scopeBranch_(user, branchId));
+}
+
+function getDashboardData_(date, branchId) {
   const selectedDate = date || today_();
   const selectedBranch = branchId || 'ALL';
   const receipts = sheetToObjects_(ORTEC.SHEETS.RECEIPTS).filter(receipt =>
     normalizeDate_(receipt.receipt_date) === selectedDate &&
     (selectedBranch === 'ALL' || receipt.branch_id === selectedBranch)
   );
-  const expenses = listExpenses(selectedDate, selectedBranch)
+  const expenses = listExpenses_(selectedDate, selectedBranch)
     .filter(expense => String(expense.status || '').toUpperCase() === 'APPROVED');
-  const issues = listInventoryIssues('OPEN').filter(issue =>
+  const issues = listInventoryIssues_('OPEN').filter(issue =>
     selectedBranch === 'ALL' || issue.branch_id === selectedBranch
   );
-  const paymentTotals = { CASH:0, CARD:0, TRANSFER:0, OTHER:0 };
-  receipts.forEach(receipt => {
-    const paymentType=String(receipt.payment_type||'').toLowerCase();
-    let bucket='OTHER';
-    if(/cash|نقد/.test(paymentType))bucket='CASH';
-    else if(/card|بطاقة/.test(paymentType))bucket='CARD';
-    else if(/transfer|تحويل/.test(paymentType))bucket='TRANSFER';
-    paymentTotals[bucket]+=Number(receipt.net_sales)||0;
-  });
   const sales=sumField_(receipts,'net_sales');
   const expenseTotal=sumField_(expenses,'amount');
+
+  // Payment method is NOT present in the Loyverse "Receipts by Item" export.
+  // The previous code bucketed every receipt by an always-empty payment_type,
+  // so CASH/CARD/TRANSFER were structurally always 0 and netCashMovement was
+  // always -expenses. Rather than publish fabricated zeros that read as
+  // measured values, report the gap explicitly and let the UI say so.
+  const paymentBreakdown = {
+    available: false,
+    reason: 'NOT_IN_SOURCE',
+    source: 'Loyverse Receipts by Item',
+    message: 'طريقة الدفع غير متوفرة في تقرير Loyverse الحالي.'
+  };
+
   return {date:selectedDate,branchId:selectedBranch,sales:sales,orders:receipts.length,
-    averageOrder:receipts.length?sales/receipts.length:0,cash:paymentTotals.CASH,
-    card:paymentTotals.CARD,transfer:paymentTotals.TRANSFER,other:paymentTotals.OTHER,
-    expenses:expenseTotal,netCashMovement:paymentTotals.CASH-expenseTotal,
+    averageOrder:receipts.length?sales/receipts.length:0,
+    expenses:expenseTotal,
+    paymentBreakdown:paymentBreakdown,
     openIssues:issues.length,criticalIssues:issues.filter(i=>String(i.severity).toUpperCase()==='CRITICAL').length};
 }
 
-function getOperationsAnalysis(date, branchId) {
+/** Public entry point: authenticate, then scope the branch to the session. */
+function getOperationsAnalysis(date, branchId, sessionToken) {
+  const user = requireCapability_('dashboard', sessionToken);
+  return getOperationsAnalysis_(resolveDateArg_(date), scopeBranch_(user, branchId));
+}
+
+function getOperationsAnalysis_(date, branchId) {
   const selectedDate=date||today_(), selectedBranch=branchId||'ALL';
   const items=sheetToObjects_(ORTEC.SHEETS.RECEIPT_ITEMS).filter(r=>
     normalizeDate_(r.receipt_date)===selectedDate && (selectedBranch==='ALL'||r.branch_id===selectedBranch));
   const products=sheetToObjects_(ORTEC.SHEETS.PRODUCTS).filter(r=>selectedBranch==='ALL'||r.branch_id===selectedBranch);
-  const expenses=listExpenses(selectedDate,selectedBranch).filter(r=>String(r.status).toUpperCase()==='APPROVED');
+  const expenses=listExpenses_(selectedDate,selectedBranch).filter(r=>String(r.status).toUpperCase()==='APPROVED');
   const byBranch={}, byItem={};
   items.forEach(r=>{
     const b=r.branch_id||'UNKNOWN'; byBranch[b]=byBranch[b]||{branchId:b,sales:0,profit:0,quantity:0};

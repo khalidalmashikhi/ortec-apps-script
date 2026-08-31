@@ -5,16 +5,16 @@ function escapeHtml_(value){
 }
 
 function saveSettings(settings, sessionToken){
-  requireRole_(['OWNER','ADMIN'], sessionToken);
+  const actor = requireCapability_('settings', sessionToken);
   Object.entries(settings||{}).forEach(([key,value])=>{
     const existing=findBy_(ORTEC.SHEETS.SETTINGS,'key',key);
     if(existing){
       updateById_(ORTEC.SHEETS.SETTINGS,'key',key,{
-        value:String(value),updated_at:nowIso_(),updated_by:getCurrentUser(sessionToken).username || getCurrentUser(sessionToken).email
+        value:String(value),updated_at:nowIso_(),updated_by:actor.username || actor.email
       });
     }else{
       appendObject_(ORTEC.SHEETS.SETTINGS,{
-        key,value:String(value),description:'',updated_at:nowIso_(),updated_by:getCurrentUser(sessionToken).username || getCurrentUser(sessionToken).email
+        key,value:String(value),description:'',updated_at:nowIso_(),updated_by:actor.username || actor.email
       });
     }
   });

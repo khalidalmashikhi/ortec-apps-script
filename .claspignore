@@ -1,0 +1,6 @@
+# Developer tooling — must never reach the Apps Script project.
+tools/**
+.git/**
+.gitignore
+.claspignore
+**/*.md

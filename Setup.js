@@ -1,4 +1,10 @@
+/**
+ * Editor-only. This rewrites every sheet header, seeds the owner account and
+ * reinstalls triggers; it was previously reachable anonymously through the
+ * ANYONE web app, which also leaked the spreadsheet id and the seeded password.
+ */
 function setupOrTec() {
+  assertEditorContext_('setupOrTec');
   const props = PropertiesService.getScriptProperties();
   let ss;
   const current = props.getProperty('SPREADSHEET_ID');
@@ -18,7 +24,7 @@ function setupOrTec() {
   seedSettings_();
   ensureDriveFolders_();
   const owner = seedOwnerUser_();
-  installDailyTriggers();
+  installDailyTriggers_();
   return {
     ok: true,
     spreadsheetId: ss.getId(),
@@ -30,6 +36,7 @@ function setupOrTec() {
 }
 
 function upgradeOrTecV2() {
+  assertEditorContext_('upgradeOrTecV2');
   return setupOrTec();
 }
 
@@ -122,7 +129,13 @@ function ensureDriveFolders_() {
   }
 }
 
+/** Editor-only: deletes and recreates this project's scheduled triggers. */
 function installDailyTriggers() {
+  assertEditorContext_('installDailyTriggers');
+  return installDailyTriggers_();
+}
+
+function installDailyTriggers_() {
   ScriptApp.getProjectTriggers().filter(function(t) {
     return ['sendDailyAccountingReport','checkMissingLoyverseUpload','sendTaskReminders'].indexOf(t.getHandlerFunction()) !== -1;
   }).forEach(function(t) { ScriptApp.deleteTrigger(t); });

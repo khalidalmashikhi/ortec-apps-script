@@ -1,5 +1,5 @@
 function uploadLoyverseFile(payload, sessionToken) {
-  requireRole_(['OWNER', 'ADMIN', 'ACCOUNTANT', 'BRANCH_MANAGER'], sessionToken);
+  requireCapability_('import', sessionToken);
 
   if (!payload || !payload.base64 || !payload.fileName) {
     throw new Error('اختر ملفًا صالحًا.');
@@ -74,7 +74,7 @@ function importLoyverseCsv_(csvText, meta) {
   const batchId = uuid_();
   let result;
 
-  if (reportType === 'ITEM_EXPORT') {
+  if (reportType === ORTEC.IMPORT_TYPES.ITEM_EXPORT) {
     result = importItemExport_(
       originalHeaders,
       normalizedHeaders,
@@ -82,7 +82,7 @@ function importLoyverseCsv_(csvText, meta) {
       batchId,
       meta
     );
-  } else if (reportType === 'RECEIPTS_BY_ITEM') {
+  } else if (reportType === ORTEC.IMPORT_TYPES.RECEIPTS_BY_ITEM) {
     result = importReceiptsByItem_(
       normalizedHeaders,
       rows.slice(1),
@@ -101,7 +101,7 @@ function importLoyverseCsv_(csvText, meta) {
     file_hash: fileHash,
     report_type: reportType,
     branch_id: meta.branchId,
-    period_date: meta.reportDate,
+    period_date: resolveDateArg_(meta.reportDate),
     total_rows: rows.length - 1,
     inserted_rows: result.inserted,
     duplicate_rows: result.duplicates,
@@ -109,7 +109,7 @@ function importLoyverseCsv_(csvText, meta) {
     status: result.errors > 0
       ? 'COMPLETED_WITH_WARNINGS'
       : 'COMPLETED',
-    uploaded_by: getCurrentUser(meta.sessionToken).username || getCurrentUser(meta.sessionToken).email,
+    uploaded_by: (function(u){return u.username || u.email;})(resolveSessionUser_(meta.sessionToken, true)),
     uploaded_at: nowIso_()
   });
 
@@ -145,7 +145,7 @@ function detectReportType_(headers) {
     headerSet.has('quantity') &&
     headerSet.has('store')
   ) {
-    return 'RECEIPTS_BY_ITEM';
+    return ORTEC.IMPORT_TYPES.RECEIPTS_BY_ITEM;
   }
 
   if (
@@ -153,7 +153,7 @@ function detectReportType_(headers) {
     headerSet.has('sku') &&
     headers.some(header => header.indexOf('in stock [') === 0)
   ) {
-    return 'ITEM_EXPORT';
+    return ORTEC.IMPORT_TYPES.ITEM_EXPORT;
   }
 
   return 'UNKNOWN';
@@ -176,17 +176,24 @@ function importItemExport_(
     throw new Error('لم يتم العثور على أعمدة مخزون الفروع.');
   }
 
+  // An Export Items file IS the current Loyverse catalogue, so the replacement
+  // set must be every product/branch row the file contains — not just the rows
+  // that happen to be new. The previous code built this list from unseen keys
+  // only and then handed it to a whole-table replace, so re-importing a broadly
+  // unchanged catalogue wiped every pre-existing product.
   const existingProducts = sheetToObjects_(ORTEC.SHEETS.PRODUCTS);
   const existingKeys = new Set(
     existingProducts.map(row => String(row.product_key || ''))
   );
 
-  const productRows = [];
+  const catalogueRows = [];        // complete replacement dataset
+  const seenKeysInFile = new Set(); // detects rows repeated WITHIN this file
   const snapshotRows = [];
 
   const stats = {
-    inserted: 0,
-    duplicates: 0,
+    inserted: 0,        // rows in this file not previously in the table
+    unchanged: 0,       // rows already present — retained, never dropped
+    duplicates: 0,      // rows repeated within this file — collapsed
     errors: 0,
     productsRead: 0,
     branchesDetected: branchColumns.map(branch => branch.branchId)
@@ -256,17 +263,19 @@ function importItemExport_(
           updated_at: nowIso_()
         };
 
-        if (existingKeys.has(productKey)) {
+        if (seenKeysInFile.has(productKey)) {
+          // The same product/branch twice in one file: keep the first, count it.
           stats.duplicates++;
         } else {
-          productRows.push(product);
-          existingKeys.add(productKey);
-          stats.inserted++;
+          seenKeysInFile.add(productKey);
+          catalogueRows.push(product);
+          if (existingKeys.has(productKey)) stats.unchanged++;
+          else stats.inserted++;
         }
 
         snapshotRows.push({
           snapshot_id: uuid_(),
-          snapshot_date: meta.reportDate,
+          snapshot_date: resolveDateArg_(meta.reportDate),
           branch_id: branch.branchId,
           sku: sku,
           item_name: itemName,
@@ -279,20 +288,47 @@ function importItemExport_(
       });
     } catch (error) {
       stats.errors++;
+      console.error('ITEM_EXPORT row failed: %s', error && error.message ? error.message : error);
     }
   });
 
-  // Export Items represents the latest current catalogue/stock. Replace the current
-  // product table while keeping InventorySnapshots as historical daily records.
-  replaceAllObjects_(ORTEC.SHEETS.PRODUCTS, productRows);
+  // Export Items represents the latest current catalogue/stock. Replace the
+  // current product table while keeping InventorySnapshots as historical daily
+  // records — snapshots are append-only and are never touched by this replace.
+  //
+  // Order matters: validate the prepared dataset, snapshot the table, then
+  // replace. replaceAllObjectsGuarded_ refuses a replacement that would shrink
+  // the catalogue implausibly, so a truncated or misparsed file fails closed
+  // rather than destroying the table.
+  if (!catalogueRows.length) {
+    throw new Error('لم يتم استخراج أي منتجات من الملف. لم يتم تعديل جدول المنتجات.');
+  }
+  const errorRatio = stats.productsRead > 0 ? stats.errors / (stats.productsRead + stats.errors) : 1;
+  if (errorRatio > ORTEC.IMPORT_GUARD.MAX_ERROR_RATIO) {
+    throw new Error(
+      `تم رفض الاستيراد: ${stats.errors} صف غير صالح من أصل ${stats.productsRead + stats.errors}. ` +
+      'لم يتم تعديل جدول المنتجات.'
+    );
+  }
 
+  const replacement = replaceAllObjectsGuarded_(ORTEC.SHEETS.PRODUCTS, catalogueRows, {
+    minRows: ORTEC.IMPORT_GUARD.MIN_CATALOGUE_ROWS,
+    maxShrinkRatio: ORTEC.IMPORT_GUARD.MAX_SHRINK_RATIO,
+    backupLabel: 'item_export'
+  });
+  stats.catalogueSize = replacement.written;
+  stats.previousCatalogueSize = replacement.previousCount;
+  stats.backupFileId = replacement.backupFileId;
+
+  // Snapshots are historical and additive; written only after the catalogue
+  // replacement has succeeded.
   appendObjectsInChunks_(
     ORTEC.SHEETS.INVENTORY,
     snapshotRows,
     1000
   );
 
-  const inventoryAnalysis = analyzeInventory(meta.reportDate);
+  const inventoryAnalysis = analyzeInventory_(resolveDateArg_(meta.reportDate));
   stats.inventoryIssuesCreated = inventoryAnalysis.count;
   return stats;
 }
@@ -489,6 +525,7 @@ function importReceiptsByItem_(
       }
     } catch (error) {
       stats.errors++;
+      console.error('RECEIPTS_BY_ITEM row failed: %s', error && error.message ? error.message : error);
     }
   });
 
@@ -530,7 +567,13 @@ function appendObjectsInChunks_(sheetName, objects, chunkSize) {
 
 
 function normalizeLoyverseBranch_(value) {
-  const branch = String(value || '').trim().toLowerCase();
+  // Normalize Arabic alif variants (أ إ آ ا) before matching: the branch is
+  // configured as "مربع إتين" with hamza, so a bare-alif test never matched and
+  // every row from that store was discarded as an error.
+  const branch = String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\u0623\u0625\u0622]/g, '\u0627');
 
   if (
     branch.includes('sadah') ||

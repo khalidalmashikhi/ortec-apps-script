@@ -124,12 +124,88 @@ function resolveSessionUser_(sessionToken, required) {
   return user;
 }
 
+/**
+ * Public accessor: returns the sanitised profile only.
+ * Server code needing the raw row (password material, role checks) must call
+ * resolveSessionUser_ directly — this used to return the whole sheet row,
+ * including password_hash and password_salt, straight to the client.
+ */
 function getCurrentUser(sessionToken) {
-  return resolveSessionUser_(sessionToken, true);
+  return publicUser_(resolveSessionUser_(sessionToken, true));
+}
+
+/**
+ * Capability matrix. This is the authorization source of truth: the client's
+ * permission list is advisory only and decides which tabs to draw.
+ */
+const ORTEC_CAPABILITIES_ = Object.freeze({
+  OWNER:          ['dashboard','import','expense','expense.approve','issues','tasks','tasks.manage','reports','reports.email','users','settings'],
+  ADMIN:          ['dashboard','import','expense','expense.approve','issues','tasks','tasks.manage','reports','reports.email','users','settings'],
+  ACCOUNTANT:     ['dashboard','import','expense','expense.approve','tasks','reports','reports.email'],
+  BRANCH_MANAGER: ['dashboard','import','expense','issues','tasks','tasks.manage','reports'],
+  CASHIER:        ['dashboard','expense','tasks'],
+  TECHNICIAN:     ['tasks'],
+  VIEWER:         ['dashboard']
+});
+
+function capabilitiesForRole_(role) {
+  return ORTEC_CAPABILITIES_[String(role)] || [];
+}
+
+/** Authenticate, then authorize against the capability matrix. */
+function requireCapability_(capability, sessionToken) {
+  const user = resolveSessionUser_(sessionToken, true);
+  if (capabilitiesForRole_(user.role).indexOf(capability) === -1) {
+    throw new Error('ليس لديك صلاحية لتنفيذ هذه العملية.');
+  }
+  return user;
+}
+
+/**
+ * Never trust a caller-supplied branch. A user pinned to one branch cannot
+ * widen their own scope by asking for another branch or for 'ALL'.
+ */
+function scopeBranch_(user, requestedBranchId) {
+  const own = String(user.branch_id || 'ALL');
+  if (own === 'ALL' || own === '') return String(requestedBranchId || 'ALL');
+  return own;
+}
+
+/**
+ * Allow only an editor/owner execution, never a web-app request.
+ * In the deployed web app (access ANYONE, executeAs USER_DEPLOYING) the active
+ * user is empty for anonymous visitors while the effective user is the owner;
+ * run from the script editor the two match.
+ */
+function assertEditorContext_(operation) {
+  let active = '', effective = '';
+  try {
+    active = String(Session.getActiveUser().getEmail() || '');
+    effective = String(Session.getEffectiveUser().getEmail() || '');
+  } catch (e) {
+    active = '';
+  }
+  if (!active || active !== effective) {
+    throw new Error(`العملية ${operation} متاحة من محرر Apps Script فقط.`);
+  }
+  return effective;
+}
+
+/**
+ * Trigger handlers cannot carry a session token, so they authorize by proving
+ * they were invoked by one of this project's own installed triggers. Anything
+ * else must present a token with the required capability.
+ */
+function requireScheduledOrCapability_(argument, sessionToken, capability) {
+  if (isTriggerEvent_(argument)) {
+    return { date: today_(), scheduled: true, user: null };
+  }
+  const user = requireCapability_(capability, sessionToken);
+  return { date: resolveDateArg_(argument), scheduled: false, user: user };
 }
 
 function requireRole_(allowed, sessionToken) {
-  const user = getCurrentUser(sessionToken);
+  const user = resolveSessionUser_(sessionToken, true);
   if (allowed.indexOf(String(user.role)) === -1) throw new Error('ليس لديك صلاحية لتنفيذ هذه العملية.');
   return user;
 }
@@ -152,13 +228,23 @@ function saveUser(input, sessionToken) {
   });
   if (duplicate) throw new Error('اسم المستخدم مستخدم مسبقًا.');
 
+  const requestedRole = String(input.role || 'VIEWER');
+  if (ORTEC.ROLES.indexOf(requestedRole) === -1) throw new Error('الدور المحدد غير معروف.');
+  // An ADMIN must not be able to mint an OWNER — including for themselves.
+  if (requestedRole === 'OWNER' && String(actor.role) !== 'OWNER') {
+    throw new Error('لا يمكن منح دور المالك إلا من حساب مالك.');
+  }
+
   const existing = input.user_id ? findBy_(ORTEC.SHEETS.USERS, 'user_id', input.user_id) : null;
+  if (existing && String(existing.role) === 'OWNER' && String(actor.role) !== 'OWNER') {
+    throw new Error('لا يمكن تعديل حساب المالك إلا من حساب مالك.');
+  }
   const patch = {
     username: username,
     email: String(input.email || '').trim(),
     name_ar: String(input.name_ar || '').trim(),
     name_en: String(input.name_en || '').trim(),
-    role: input.role || 'VIEWER',
+    role: requestedRole,
     branch_id: input.branch_id || 'ALL',
     language: input.language || 'ar',
     active: input.active !== false && String(input.active).toLowerCase() !== 'false'
@@ -190,7 +276,7 @@ function saveUser(input, sessionToken) {
 }
 
 function changeMyPassword(currentPassword, newPassword, sessionToken) {
-  const user = getCurrentUser(sessionToken);
+  const user = resolveSessionUser_(sessionToken, true);
   if (hashPassword_(currentPassword, user.password_salt || '') !== String(user.password_hash || '')) {
     throw new Error('كلمة المرور الحالية غير صحيحة.');
   }
@@ -201,8 +287,11 @@ function changeMyPassword(currentPassword, newPassword, sessionToken) {
     password_hash: hashPassword_(newPassword, salt),
     must_change_password: false
   });
+  // A password change must not leave the old session usable.
+  if (sessionToken) CacheService.getScriptCache().remove('session:' + sessionToken);
+  ORTEC_RUNTIME_USER_ = null;
   audit_('USER', user.user_id, 'PASSWORD_CHANGE', null, {});
-  return { ok: true };
+  return { ok: true, reauthenticate: true };
 }
 
 function auditAuth_(username, action, reason) {

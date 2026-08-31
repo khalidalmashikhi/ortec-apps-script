@@ -3,21 +3,30 @@ function doGet() {
     .setTitle(ORTEC.APP_NAME).addMetaTag('viewport', 'width=device-width, initial-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DEFAULT);
 }
-function include(filename) { return HtmlService.createHtmlOutputFromFile(filename).getContent(); }
+// Only the app's own partials may be included. Without the allow-list this is
+// an arbitrary-file read reachable from the client.
+const ORTEC_INCLUDABLE_ = Object.freeze(['Index','ClientJS','Styles']);
+function include(filename) {
+  const name = String(filename || '');
+  if (ORTEC_INCLUDABLE_.indexOf(name) === -1) throw new Error('Unknown template.');
+  return HtmlService.createHtmlOutputFromFile(name).getContent();
+}
 
 function getBootstrapData(sessionToken) {
   try {
-    const user = getCurrentUser(sessionToken);
+    const user = resolveSessionUser_(sessionToken, true);
+    const branch = String(user.branch_id || 'ALL');
     const response = {
       app: { name: ORTEC.APP_NAME, version: ORTEC.VERSION, language: String(user.language || 'ar') },
       user: publicUser_(user), branches: ORTEC.BRANCHES || [],
       permissions: getPermissionsForRole_(user.role),
-      dashboard: getDashboardData(today_(), user.branch_id || 'ALL'),
-      analysis: getOperationsAnalysis(today_(), user.branch_id || 'ALL'),
-      expenses: listExpenses(today_(), user.branch_id || 'ALL') || [],
-      issues: listInventoryIssues('OPEN') || [], tasks: listTasks('OPEN') || []
+      capabilities: capabilitiesForRole_(user.role),
+      dashboard: getDashboardData_(today_(), branch),
+      analysis: getOperationsAnalysis_(today_(), branch),
+      expenses: listExpenses_(today_(), branch) || [],
+      issues: listInventoryIssues_('OPEN') || [], tasks: listTasks_('OPEN') || []
     };
-    if (['OWNER','ADMIN'].indexOf(user.role) !== -1) response.users = listUsers(sessionToken);
+    if (capabilitiesForRole_(user.role).indexOf('users') !== -1) response.users = listUsers(sessionToken);
     return makeClientSafe_(response);
   } catch (error) {
     console.error('getBootstrapData failed', error && error.stack ? error.stack : error);
@@ -25,17 +34,14 @@ function getBootstrapData(sessionToken) {
   }
 }
 
+/**
+ * Which tabs the client draws. Advisory only — derived from the same matrix the
+ * server enforces so the two cannot drift, but never a substitute for it.
+ */
 function getPermissionsForRole_(role) {
-  const map = {
-    OWNER: ['dashboard','import','expense','issues','tasks','reports','users'],
-    ADMIN: ['dashboard','import','expense','issues','tasks','reports','users'],
-    ACCOUNTANT: ['dashboard','import','expense','tasks','reports'],
-    BRANCH_MANAGER: ['dashboard','import','expense','issues','tasks','reports'],
-    CASHIER: ['dashboard','expense','tasks'],
-    TECHNICIAN: ['tasks'],
-    VIEWER: ['dashboard']
-  };
-  return map[role] || ['dashboard'];
+  return capabilitiesForRole_(role).filter(function (capability) {
+    return capability.indexOf('.') === -1;
+  });
 }
 
 function makeClientSafe_(value) {
