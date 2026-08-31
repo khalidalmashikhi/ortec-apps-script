@@ -49,21 +49,34 @@ function replaceAllObjects_(name, objects) {
  * replaceAllObjects_ clears the sheet before it writes, so a caller that hands
  * it an incomplete dataset destroys the rows it omitted, and a failure between
  * the clear and the write leaves the table empty. This wrapper refuses
- * implausible replacements and snapshots the current contents first, so a bad
- * import fails closed instead of shredding the table.
+ * implausible replacements and, when there is existing data to lose, takes a
+ * verified backup FIRST.
  *
- * options: { minRows, maxShrinkRatio, backupLabel, allowShrink }
+ * FAIL-CLOSED: if a backup is required and cannot be created and verified, the
+ * replacement aborts before anything is cleared. There is deliberately no
+ * "log it and continue" path — losing the catalogue silently is the failure
+ * mode this whole function exists to prevent.
+ *
+ * Order of operations: validate -> guard -> backup (verified) -> replace.
+ *
+ * options: { minRows, maxShrinkRatio, backupLabel, allowShrink, requireBackup }
  */
 function replaceAllObjectsGuarded_(name, objects, options) {
   options = options || {};
   const rows = objects || [];
   const minRows = options.minRows == null ? 1 : Number(options.minRows);
 
+  // 1. Validate the prepared dataset before touching anything.
+  if (!Array.isArray(rows)) {
+    throw new Error(`Refusing to replace ${name}: replacement dataset is not an array.`);
+  }
   if (rows.length < minRows) {
     throw new Error(`Refusing to replace ${name}: got ${rows.length} rows, expected at least ${minRows}.`);
   }
 
   const current = sheetToObjects_(name);
+
+  // 2. Guard against an implausible shrink.
   const maxShrinkRatio = options.maxShrinkRatio == null ? 0.5 : Number(options.maxShrinkRatio);
   if (!options.allowShrink && current.length > 0) {
     const floor = Math.floor(current.length * (1 - maxShrinkRatio));
@@ -76,24 +89,57 @@ function replaceAllObjectsGuarded_(name, objects, options) {
     }
   }
 
-  const backup = backupSheetSnapshot_(name, current, options.backupLabel);
+  // 3. Back up before destroying anything. Only meaningful when there is data
+  //    to lose: a first-ever import into an empty table has nothing to back up.
+  let backupFileId = '';
+  if (current.length > 0 && options.requireBackup !== false) {
+    backupFileId = createVerifiedBackup_(name, current, options.backupLabel);
+  }
+
+  // 4. Only now is it safe to clear and write.
   const written = replaceAllObjects_(name, rows);
-  return { written: written, previousCount: current.length, backupFileId: backup };
+  return { written: written, previousCount: current.length, backupFileId: backupFileId };
 }
 
-/** Write a JSON snapshot of a sheet to the Backups folder. Best effort. */
-function backupSheetSnapshot_(name, rows, label) {
-  try {
-    const folderId = PropertiesService.getScriptProperties().getProperty('BACKUP_FOLDER_ID');
-    if (!folderId || !rows || !rows.length) return '';
-    const stamp = Utilities.formatDate(new Date(), ORTEC.TZ, "yyyy-MM-dd'T'HH-mm-ss");
-    const fileName = `${name}_${label || 'replace'}_${stamp}.json`;
-    const blob = Utilities.newBlob(JSON.stringify(rows), 'application/json', fileName);
-    return DriveApp.getFolderById(folderId).createFile(blob).getId();
-  } catch (e) {
-    console.error('backupSheetSnapshot_ failed for %s: %s', name, e && e.message ? e.message : e);
-    return '';
+/**
+ * Write a JSON snapshot of a sheet to the Backups folder and verify it landed.
+ * Throws on any failure — callers must treat that as "abort the replacement".
+ */
+function createVerifiedBackup_(name, rows, label) {
+  const folderId = PropertiesService.getScriptProperties().getProperty('BACKUP_FOLDER_ID');
+  if (!folderId) {
+    throw new Error(
+      `Refusing to replace ${name}: BACKUP_FOLDER_ID is not configured, so the current ` +
+      'contents cannot be backed up. Run setupOrTec from the editor first.'
+    );
   }
+
+  const payload = JSON.stringify(rows);
+  const stamp = Utilities.formatDate(new Date(), ORTEC.TZ, "yyyy-MM-dd'T'HH-mm-ss");
+  const fileName = `${name}_${label || 'replace'}_${stamp}.json`;
+
+  let file;
+  try {
+    const blob = Utilities.newBlob(payload, 'application/json', fileName);
+    file = DriveApp.getFolderById(folderId).createFile(blob);
+  } catch (error) {
+    throw new Error(
+      `Refusing to replace ${name}: backup could not be written to the Backups folder ` +
+      `(${String(error && error.message ? error.message : error)}).`
+    );
+  }
+
+  // Verify the backup actually exists and is not empty before trusting it.
+  const fileId = file && file.getId ? String(file.getId() || '') : '';
+  if (!fileId) {
+    throw new Error(`Refusing to replace ${name}: backup file was not created.`);
+  }
+  const size = file.getSize ? Number(file.getSize()) : payload.length;
+  if (!(size > 0)) {
+    throw new Error(`Refusing to replace ${name}: backup file ${fileId} is empty.`);
+  }
+
+  return fileId;
 }
 
 function findBy_(name, field, value) {

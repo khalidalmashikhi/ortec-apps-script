@@ -302,9 +302,316 @@ function test_branchNormalization_(results) {
   ortecAssertEquals_(results, 'an unknown store maps to empty', normalizeLoyverseBranch_('Nowhere'), '');
 }
 
+
+// ------------------------------------------- Node-only integration harness ---
+//
+// These tests exercise the real replaceAllObjectsGuarded_ against an in-memory
+// sheet double, so they can prove ORDER of operations — specifically that a
+// backup failure aborts BEFORE anything is cleared. They require the ability to
+// swap the Google service globals, which only the Node runner allows; inside
+// Apps Script they are skipped.
+
+function ortecIsNodeHarness_() {
+  return typeof globalThis !== 'undefined' && globalThis.__ORTEC_TEST_HARNESS__ === true;
+}
+
+/**
+ * Installs a fake spreadsheet containing `initialRows` for `sheetName`, plus a
+ * Drive stub whose backup behaviour is controlled by `driveMode`:
+ *   'ok'          — backups succeed
+ *   'throw'       — createFile throws
+ *   'empty'       — createFile returns a zero-byte file
+ *   'no-folder'   — BACKUP_FOLDER_ID is not configured
+ * Returns a probe describing what the sheet actually experienced.
+ */
+function ortecInstallFakeSheet_(sheetName, headers, initialRows, driveMode) {
+  const probe = { cleared: 0, writes: [], backupsCreated: 0, rows: initialRows.slice() };
+
+  const sheet = {
+    getDataRange: () => ({ getValues: () => [headers].concat(probe.rows.map(r => headers.map(h => r[h] !== undefined ? r[h] : ''))) }),
+    getLastRow: () => probe.rows.length + 1,
+    getLastColumn: () => headers.length,
+    setFrozenRows: () => undefined,
+    appendRow: row => { probe.writes.push(['append', row]); },
+    getRange: () => ({
+      clearContent: () => { probe.cleared++; probe.rows = []; },
+      setValues: values => {
+        probe.writes.push(['setValues', values.length]);
+        probe.rows = values.map(v => headers.reduce((o, h, i) => (o[h] = v[i], o), {}));
+      },
+      setValue: () => undefined,
+      setFontWeight: () => undefined
+    })
+  };
+
+  globalThis.SpreadsheetApp = { openById: () => ({ getSheetByName: n => (n === sheetName ? sheet : null)}) };
+  globalThis.PropertiesService = {
+    getScriptProperties: () => ({
+      getProperty: key => {
+        if (key === 'SPREADSHEET_ID') return 'fake-spreadsheet';
+        if (key === 'BACKUP_FOLDER_ID') return driveMode === 'no-folder' ? null : 'fake-backup-folder';
+        return null;
+      },
+      setProperty: () => { throw new Error('SAFETY VIOLATION: property write'); }
+    })
+  };
+  globalThis.Utilities.newBlob = (content, type, nameArg) => ({ content: content, type: type, name: nameArg });
+  globalThis.DriveApp = {
+    getFolderById: () => ({
+      createFile: blob => {
+        if (driveMode === 'throw') throw new Error('Drive quota exceeded');
+        probe.backupsCreated++;
+        const size = driveMode === 'empty' ? 0 : String(blob.content || '').length;
+        return { getId: () => (driveMode === 'empty' ? 'empty-file-id' : 'backup-file-id'), getSize: () => size };
+      }
+    })
+  };
+  return probe;
+}
+
+const ORTEC_TEST_PRODUCT_HEADERS_ = ['product_key','sku','barcode','item_name','category','cost','price','track_stock','branch_id','stock','low_stock_threshold','batch_id','updated_at'];
+
+function ortecProduct_(key) {
+  return { product_key: key, sku: key, barcode: '', item_name: 'Item ' + key, category: 'C',
+           cost: 1, price: 2, track_stock: true, branch_id: 'AWQAD', stock: 5,
+           low_stock_threshold: 1, batch_id: 'b1', updated_at: '2026-08-31T00:00:00' };
+}
+
+function test_failClosedBackup_(results) {
+  if (!ortecIsNodeHarness_()) {
+    ortecAssert_(results, 'fail-closed backup tests skipped (Apps Script runtime)', true);
+    return;
+  }
+  const existing = ['A','B','C','D'].map(ortecProduct_);
+  const replacement = ['A','B','C','D','E'].map(ortecProduct_);
+
+  // 1. Happy path: backup succeeds, then the replacement is written.
+  let probe = ortecInstallFakeSheet_('LoyverseProducts', ORTEC_TEST_PRODUCT_HEADERS_, existing, 'ok');
+  let out = replaceAllObjectsGuarded_('LoyverseProducts', replacement, { backupLabel: 'test', requireBackup: true });
+  ortecAssertEquals_(results, 'valid catalogue replaces current state', out.written, 5);
+  ortecAssertEquals_(results, 'a backup was created before the replace', probe.backupsCreated, 1);
+  ortecAssertEquals_(results, 'backup id is returned', out.backupFileId, 'backup-file-id');
+  ortecAssertEquals_(results, 'previous count is reported', out.previousCount, 4);
+  ortecAssertEquals_(results, 'unchanged products survive the replace',
+    probe.rows.filter(r => ['A','B','C','D'].indexOf(r.product_key) !== -1).length, 4);
+  ortecAssert_(results, 'new product appears after the replace',
+    probe.rows.some(r => r.product_key === 'E'));
+
+  // 2. Backup throws -> abort BEFORE any clear.
+  probe = ortecInstallFakeSheet_('LoyverseProducts', ORTEC_TEST_PRODUCT_HEADERS_, existing, 'throw');
+  ortecAssertThrows_(results, 'backup failure aborts the replacement', function () {
+    replaceAllObjectsGuarded_('LoyverseProducts', replacement, { backupLabel: 'test', requireBackup: true });
+  });
+  ortecAssertEquals_(results, 'backup failure: sheet was never cleared', probe.cleared, 0);
+  ortecAssertEquals_(results, 'backup failure: nothing was written', probe.writes.length, 0);
+  ortecAssertEquals_(results, 'backup failure: existing products intact', probe.rows.length, 4);
+
+  // 3. Backup folder not configured -> abort before any clear.
+  probe = ortecInstallFakeSheet_('LoyverseProducts', ORTEC_TEST_PRODUCT_HEADERS_, existing, 'no-folder');
+  ortecAssertThrows_(results, 'missing BACKUP_FOLDER_ID aborts the replacement', function () {
+    replaceAllObjectsGuarded_('LoyverseProducts', replacement, { backupLabel: 'test', requireBackup: true });
+  });
+  ortecAssertEquals_(results, 'missing backup folder: sheet was never cleared', probe.cleared, 0);
+  ortecAssertEquals_(results, 'missing backup folder: existing products intact', probe.rows.length, 4);
+
+  // 4. Backup written but empty -> treated as failure.
+  probe = ortecInstallFakeSheet_('LoyverseProducts', ORTEC_TEST_PRODUCT_HEADERS_, existing, 'empty');
+  ortecAssertThrows_(results, 'a zero-byte backup aborts the replacement', function () {
+    replaceAllObjectsGuarded_('LoyverseProducts', replacement, { backupLabel: 'test', requireBackup: true });
+  });
+  ortecAssertEquals_(results, 'empty backup: sheet was never cleared', probe.cleared, 0);
+  ortecAssertEquals_(results, 'empty backup: existing products intact', probe.rows.length, 4);
+
+  // 5. Empty catalogue -> abort before clear and before backup.
+  probe = ortecInstallFakeSheet_('LoyverseProducts', ORTEC_TEST_PRODUCT_HEADERS_, existing, 'ok');
+  ortecAssertThrows_(results, 'empty catalogue aborts the replacement', function () {
+    replaceAllObjectsGuarded_('LoyverseProducts', [], { requireBackup: true });
+  });
+  ortecAssertEquals_(results, 'empty catalogue: sheet was never cleared', probe.cleared, 0);
+  ortecAssertEquals_(results, 'empty catalogue: no pointless backup taken', probe.backupsCreated, 0);
+
+  // 6. Malformed dataset -> abort.
+  probe = ortecInstallFakeSheet_('LoyverseProducts', ORTEC_TEST_PRODUCT_HEADERS_, existing, 'ok');
+  ortecAssertThrows_(results, 'malformed catalogue aborts the replacement', function () {
+    replaceAllObjectsGuarded_('LoyverseProducts', 'not-an-array', { requireBackup: true });
+  });
+  ortecAssertEquals_(results, 'malformed catalogue: sheet was never cleared', probe.cleared, 0);
+
+  // 7. Implausible shrink -> abort before clear.
+  probe = ortecInstallFakeSheet_('LoyverseProducts', ORTEC_TEST_PRODUCT_HEADERS_,
+    'ABCDEFGHIJ'.split('').map(ortecProduct_), 'ok');
+  ortecAssertThrows_(results, 'implausible shrink aborts the replacement', function () {
+    replaceAllObjectsGuarded_('LoyverseProducts', [ortecProduct_('A')], { requireBackup: true });
+  });
+  ortecAssertEquals_(results, 'shrink guard: sheet was never cleared', probe.cleared, 0);
+  ortecAssertEquals_(results, 'shrink guard: existing products intact', probe.rows.length, 10);
+
+  // 8. First-ever import into an empty table needs no backup and is allowed.
+  probe = ortecInstallFakeSheet_('LoyverseProducts', ORTEC_TEST_PRODUCT_HEADERS_, [], 'no-folder');
+  out = replaceAllObjectsGuarded_('LoyverseProducts', replacement, { requireBackup: true });
+  ortecAssertEquals_(results, 'first import into an empty table succeeds', out.written, 5);
+  ortecAssertEquals_(results, 'first import takes no backup (nothing to lose)', probe.backupsCreated, 0);
+
+  // 9. Catalogue semantics: a product absent from the new file is REMOVED,
+  //    because Export Items is a full snapshot of the current catalogue.
+  probe = ortecInstallFakeSheet_('LoyverseProducts', ORTEC_TEST_PRODUCT_HEADERS_, existing, 'ok');
+  replaceAllObjectsGuarded_('LoyverseProducts', ['A','B','C'].map(ortecProduct_),
+    { requireBackup: true, maxShrinkRatio: 0.5 });
+  ortecAssert_(results, 'a delisted product is removed by the replace',
+    !probe.rows.some(r => r.product_key === 'D'));
+  ortecAssertEquals_(results, 'delisting is recoverable from the backup', probe.backupsCreated, 1);
+
+  // Put the hostile stubs back so later suites still run against services that
+  // throw on any production access. Without this the in-memory sheet double
+  // would stay live and quietly weaken the guarantees those suites assert.
+  if (typeof globalThis.__ortecRestoreHostileStubs__ === 'function') {
+    globalThis.__ortecRestoreHostileStubs__();
+  }
+  ortecAssertThrows_(results, 'hostile stubs restored after the integration suite', function () {
+    DriveApp.getFolderById('any-folder');
+  });
+}
+
+// ---------------------------------------- adversarial authorization probes ---
+
+function test_adversarialAuthorization_(results) {
+  const forged = [
+    { triggerUid: 'made-up', authMode: 'FULL' },
+    { triggerUid: '', authMode: 'FULL' },
+    { authMode: 'FULL', hour: 22 },
+    { triggerUid: ['array'], year: 2026 },
+    { toString: function () { return 'trigger'; } }
+  ];
+  forged.forEach(function (event, index) {
+    ortecAssert_(results, `forged trigger event #${index + 1} is rejected`, !isTriggerEvent_(event));
+    ortecAssertThrows_(results, `forged trigger event #${index + 1} cannot send the daily report`, function () {
+      sendDailyAccountingReport(event);
+    });
+  });
+  ortecAssert_(results, 'a null event is not a trigger', !isTriggerEvent_(null));
+  ortecAssert_(results, 'a Date is not a trigger event', !isTriggerEvent_(new Date()));
+  ortecAssert_(results, 'a string is not a trigger event', !isTriggerEvent_('triggerUid=1'));
+
+  // No session / invalid session / expired session all fail the same way: the
+  // cache lookup returns nothing, so there is no user to authorize.
+  const badTokens = [undefined, null, '', '   ', 'not-a-token', 'expired-session-token', 0, {}, []];
+  badTokens.forEach(function (token) {
+    ortecAssertThrows_(results, `expense mutation rejected for token ${JSON.stringify(token)}`, function () {
+      createExpense({ branchId: 'AWQAD', amount: 5, category: 'X', description: 'y' }, token);
+    });
+  });
+
+  // Mutations across every protected surface.
+  ortecAssertThrows_(results, 'unauthenticated user creation is rejected', function () {
+    saveUser({ username: 'attacker', password: 'password123', role: 'OWNER' }, 'bogus');
+  });
+  ortecAssertThrows_(results, 'unauthenticated settings write is rejected', function () {
+    saveSettings({ REPORT_RECIPIENTS: 'attacker@example.com' }, 'bogus');
+  });
+  ortecAssertThrows_(results, 'unauthenticated task creation is rejected', function () {
+    createTask({ title: 'x' }, 'bogus');
+  });
+  ortecAssertThrows_(results, 'unauthenticated task completion is rejected', function () {
+    completeTask('any-task', 'bogus');
+  });
+  ortecAssertThrows_(results, 'unauthenticated expense approval is rejected', function () {
+    approveExpense('any-expense', 'bogus');
+  });
+  ortecAssertThrows_(results, 'unauthenticated import is rejected', function () {
+    uploadLoyverseFile({ base64: 'x', fileName: 'a.csv' }, 'bogus');
+  });
+  ortecAssertThrows_(results, 'unauthenticated report PDF is rejected', function () {
+    createReportPdf('DAILY', {}, 'bogus');
+  });
+  ortecAssertThrows_(results, 'unauthenticated report email is rejected', function () {
+    emailReportPdf('DAILY', {}, 'attacker@example.com', 'bogus');
+  });
+  ortecAssertThrows_(results, 'unauthenticated user listing is rejected', function () { listUsers('bogus'); });
+  ortecAssertThrows_(results, 'unauthenticated profile read is rejected', function () { getCurrentUser('bogus'); });
+  ortecAssertThrows_(results, 'unauthenticated bootstrap is rejected', function () { getBootstrapData('bogus'); });
+  ortecAssertThrows_(results, 'unauthenticated issue-to-task is rejected', function () {
+    createTaskFromIssue('i1', 'someone', '2026-09-01', 'bogus');
+  });
+
+  // Internal/setup functions must refuse a web context. In the harness the
+  // active user is anonymous and the effective user is the owner, which is
+  // exactly the anonymous-web-app shape.
+  ortecAssertThrows_(results, 'setupOrTec refuses a web context', function () { setupOrTec(); });
+  ortecAssertThrows_(results, 'upgradeOrTecV2 refuses a web context', function () { upgradeOrTecV2(); });
+  ortecAssertThrows_(results, 'installDailyTriggers refuses a web context', function () { installDailyTriggers(); });
+
+  // Role escalation and branch forgery are decided by pure functions, so they
+  // can be asserted directly without a live session.
+  ortecAssert_(results, 'VIEWER has no mutation capability',
+    ['import','expense','tasks','users','settings','reports.email']
+      .every(c => capabilitiesForRole_('VIEWER').indexOf(c) === -1));
+  ortecAssert_(results, 'TECHNICIAN cannot manage tasks',
+    capabilitiesForRole_('TECHNICIAN').indexOf('tasks.manage') === -1);
+  ortecAssertEquals_(results, 'forged branch argument is overridden by the session',
+    scopeBranch_({ branch_id: 'ITTIN' }, 'ALL'), 'ITTIN');
+  ortecAssertEquals_(results, 'forged branch object is coerced, not trusted',
+    scopeBranch_({ branch_id: 'ITTIN' }, { branch_id: 'ALL' }), 'ITTIN');
+}
+
+// ---------------------------------------- server-surface coverage invariant ---
+
+/**
+ * Guards the whole externally-callable surface, not just the functions Phase 1
+ * touched. Any new global function must be gated, or explicitly listed here as
+ * public by design. Node-only: it reads the sources.
+ */
+function test_serverSurfaceCoverage_(results) {
+  if (typeof require !== 'function') {
+    ortecAssert_(results, 'server-surface scan skipped (Apps Script runtime)', true);
+    return;
+  }
+  const fs = require('fs');
+  const PUBLIC_BY_DESIGN = ['login', 'doGet', 'include'];
+  const GATES = [
+    'requireCapability_(', 'requireScheduledOrCapability_(', 'requireRole_(',
+    'assertEditorContext_(', 'resolveSessionUser_(', 'ORTEC_INCLUDABLE_'
+  ];
+  const files = ['Auth.js','Config.js','Dashboard.js','DataRepository.js','Diagnostics.js',
+                 'Expenses.js','InventoryAnalysis.js','LoyverseImport.js','Reports.js',
+                 'Setup.js','Tasks.js','Tests.js','Utils.js','WebApp.js'];
+  const ungated = [];
+  let scanned = 0;
+
+  files.forEach(function (file) {
+    let source;
+    try { source = fs.readFileSync(file, 'utf8'); } catch (e) { return; }
+    const pattern = /^function ([A-Za-z0-9_]+)\s*\(/gm;
+    let match;
+    while ((match = pattern.exec(source)) !== null) {
+      const name = match[1];
+      if (name.charAt(name.length - 1) === '_') continue; // private by convention
+      scanned++;
+      const next = source.indexOf('\nfunction ', match.index + 1);
+      const body = source.slice(match.index, next > 0 ? next : source.length);
+      const gated = GATES.some(function (g) { return body.indexOf(g) !== -1; });
+      if (!gated && PUBLIC_BY_DESIGN.indexOf(name) === -1) ungated.push(`${name} (${file})`);
+    }
+  });
+
+  ortecAssert_(results, 'every externally-callable function is gated or public by design',
+    ungated.length === 0, `ungated: ${ungated.join(', ')}`);
+  ortecAssert_(results, 'the surface scan actually found functions', scanned > 20,
+    `only ${scanned} scanned`);
+}
+
 // ------------------------------------------------------------------ runner ---
 
+/**
+ * Editor-only entry point. Tests.js ships with the project, so runAllTests is a
+ * global function and would otherwise be callable anonymously through the web
+ * app; it does no harm but it is still exposed surface and burns quota.
+ */
 function runAllTests() {
+  assertEditorContext_('runAllTests');
+  return ortecRunAllTests_();
+}
+
+function ortecRunAllTests_() {
   const results = [];
   const suites = [
     ['P1 date normalization', test_resolveDateArg_],
@@ -315,7 +622,10 @@ function runAllTests() {
     ['P4 authorization', test_authorization_],
     ['P5 payment honesty', test_paymentBreakdownHonesty_],
     ['P6 manual report compatibility', test_manualReportCompatibility_],
-    ['branch normalization', test_branchNormalization_]
+    ['1.5 fail-closed backup', test_failClosedBackup_],
+    ['1.5 adversarial authorization', test_adversarialAuthorization_],
+    ['branch normalization', test_branchNormalization_],
+    ['1.5 server-surface coverage', test_serverSurfaceCoverage_]
   ];
 
   suites.forEach(function (suite) {

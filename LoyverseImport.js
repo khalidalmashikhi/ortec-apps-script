@@ -311,10 +311,13 @@ function importItemExport_(
     );
   }
 
+  // requireBackup is explicit: a full-catalogue replacement must never proceed
+  // on a table that has data if the backup cannot be written and verified.
   const replacement = replaceAllObjectsGuarded_(ORTEC.SHEETS.PRODUCTS, catalogueRows, {
     minRows: ORTEC.IMPORT_GUARD.MIN_CATALOGUE_ROWS,
     maxShrinkRatio: ORTEC.IMPORT_GUARD.MAX_SHRINK_RATIO,
-    backupLabel: 'item_export'
+    backupLabel: 'item_export',
+    requireBackup: true
   });
   stats.catalogueSize = replacement.written;
   stats.previousCatalogueSize = replacement.previousCount;
