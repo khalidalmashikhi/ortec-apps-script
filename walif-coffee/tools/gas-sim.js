@@ -55,6 +55,7 @@ class Spreadsheet {
   insertSheet(n) { const s = new Sheet(this, n); this.sheets.push(s); return s; }
   deleteSheet(s) { this.sheets = this.sheets.filter(x => x !== s); }
   setSpreadsheetTimeZone(tz) { this.tz = tz; } getSpreadsheetTimeZone() { return this.tz; }
+  getUrl() { return 'https://docs.google.com/spreadsheets/d/' + this.id + '/edit'; }
 }
 
 // ------------------------------------------------------------ Drive / Docs
@@ -118,7 +119,28 @@ const PropertiesService = { getScriptProperties: () => ({
 const CacheService = { getScriptCache: () => ({ get: k => STATE.cache[k] || null, put: (k, v) => { STATE.cache[k] = v; }, remove: k => { delete STATE.cache[k]; } }) };
 const LockService = { getScriptLock: () => ({ tryLock() { if (STATE.lockHeld) return false; STATE.lockHeld = true; return true; }, releaseLock() { STATE.lockHeld = false; } }) };
 const MailApp = { sendEmail: (o) => { if (!o.to) throw new Error('no recipient'); STATE.mails.push(o); }, getRemainingDailyQuota: () => 99 };
+// Fake Apps Script REST API + raw GitHub, used by Deploy.gs and installer/Installer.gs
+STATE.http = [];
+STATE.deployments = {};
+const UrlFetchApp = { fetch(url, opts) {
+  opts = opts || {}; STATE.http.push({ url, opts });
+  const reply = (code, body) => ({ getResponseCode: () => code, getContentText: () => typeof body === 'string' ? body : JSON.stringify(body) });
+  let m;
+  if ((m = /raw\.githubusercontent\.com\/.*\/walif-coffee\/([^?]+)/.exec(url))) {
+    const f = path.resolve(__dirname, '..', m[1]); return fs.existsSync(f) ? reply(200, fs.readFileSync(f, 'utf8')) : reply(404, 'not found');
+  }
+  if (/script\.googleapis\.com\/v1\/projects\/SCRIPT_ID\/content$/.test(url) && opts.method === 'put') { STATE.installed = JSON.parse(opts.payload).files; return reply(200, { scriptId: 'SCRIPT_ID' }); }
+  if (/\/versions$/.test(url)) { STATE.version = (STATE.version || 0) + 1; return reply(200, { versionNumber: STATE.version }); }
+  if ((m = /\/deployments\/([^/]+)$/.exec(url))) {
+    const d = STATE.deployments[m[1]]; if (!d) return reply(404, { error: 'no such deployment' });
+    if (opts.method === 'put') d.versionNumber = JSON.parse(opts.payload).deploymentConfig.versionNumber;
+    return reply(200, { deploymentId: m[1], entryPoints: [{ entryPointType: 'WEB_APP', webApp: { url: 'https://script.google.com/macros/s/' + m[1] + '/exec' } }] });
+  }
+  if (/\/deployments$/.test(url) && opts.method === 'post') { const id = 'AKfy' + crypto.randomUUID().slice(0, 8); STATE.deployments[id] = { versionNumber: JSON.parse(opts.payload).versionNumber }; return reply(200, { deploymentId: id }); }
+  return reply(500, 'unhandled ' + url);
+} };
 const ScriptApp = {
+  getScriptId: () => 'SCRIPT_ID', getOAuthToken: () => 'ya29.fake',
   getProjectTriggers: () => STATE.triggers.slice(),
   deleteTrigger: t => { STATE.triggers = STATE.triggers.filter(x => x !== t); },
   newTrigger: fn => { const t = { fn, hour: null, tz: null, getHandlerFunction: () => fn }; const b = { timeBased: () => b, everyDays: () => b, atHour: h => { t.hour = h; return b; }, inTimezone: z => { t.tz = z; return b; }, create: () => { STATE.triggers.push(t); return t; } }; return b; }
@@ -138,10 +160,11 @@ function load() {
   Object.keys(STATE.props).forEach(k => delete STATE.props[k]); Object.keys(STATE.cache).forEach(k => delete STATE.cache[k]);
   STATE.triggers.length = 0; STATE.mails.length = 0; STATE.logs.length = 0; STATE.lockHeld = false;
   const SpreadsheetApp = { getActiveSpreadsheet: () => ss, openById: () => ss };
-  const ctx = vm.createContext({ Utilities, PropertiesService, CacheService, LockService, MailApp, ScriptApp, DriveApp, DocumentApp, HtmlService, Logger, SpreadsheetApp, console, JSON, Math, Date, Number, String, Array, Object, RegExp, Error, parseFloat, parseInt, isFinite, isNaN });
+  const ctx = vm.createContext({ Utilities, UrlFetchApp, PropertiesService, CacheService, LockService, MailApp, ScriptApp, DriveApp, DocumentApp, HtmlService, Logger, SpreadsheetApp, console, JSON, Math, Date, Number, String, Array, Object, RegExp, Error, parseFloat, parseInt, isFinite, isNaN });
   const dir = path.resolve(__dirname, '..');
   const files = fs.readdirSync(dir).filter(f => f.endsWith('.gs')).sort((a, b) => (a === 'Config.gs' ? -1 : b === 'Config.gs' ? 1 : a.localeCompare(b)));
   for (const f of files) new vm.Script(fs.readFileSync(path.join(dir, f), 'utf8'), { filename: f }).runInContext(ctx);
+  ctx.__installer = () => { const c = vm.createContext({ UrlFetchApp, ScriptApp, Logger, JSON, Date, Error }); new vm.Script(fs.readFileSync(path.join(dir, 'installer', 'Installer.gs'), 'utf8'), { filename: 'Installer.gs' }).runInContext(c); return c.installWalifCoffee(); };
   ctx.__sim = { ss, STATE, DRIVE, findFolder: (p) => { let cur = DRIVE.root; for (const seg of p.split('/')) { const it = cur.getFoldersByName(seg); if (!it.hasNext()) return null; cur = it.next(); } return cur; } };
   return ctx;
 }

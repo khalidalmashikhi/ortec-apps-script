@@ -268,6 +268,21 @@ test('audit/error logs never contain tokens or passwords', () => {
 });
 test('manager audit/users APIs', () => { assert.ok(ok(G.api_getAuditLog(mgr.token, 50)).rows.length > 10); assert.strictEqual(ok(G.api_listUsers(mgr.token)).users.length, 2); });
 
+console.log('\ninstaller + self-deployment (Apps Script API mocked)');
+test('installer fetches every project file and PUTs them as project content', () => {
+  const n = G.__installer(); const local = fs.readdirSync(path.join(__dirname, '..')).filter(f => /\.(gs|html)$/.test(f)).length + 1;
+  assert.strictEqual(n, local, 'installer file list must cover every .gs/.html + manifest');
+  const inst = S.STATE.installed; assert.ok(inst.find(f => f.name === 'appsscript' && f.type === 'JSON'));
+  assert.ok(inst.find(f => f.name === 'Code' && f.type === 'SERVER_JS' && /doGet/.test(f.source)));
+  assert.ok(inst.find(f => f.name === 'Index' && f.type === 'HTML'));
+  assert.ok(JSON.parse(inst.find(f => f.name === 'appsscript').source).oauthScopes.includes('https://www.googleapis.com/auth/script.deployments'));
+});
+test('deployWebApp creates a deployment, then updates the same one', () => {
+  const url1 = G.deployWebApp(); assert.ok(/\/macros\/s\/AKfy.*\/exec$/.test(url1), url1);
+  const url2 = G.deployWebApp(); assert.strictEqual(url2, url1, 'URL must stay stable'); assert.strictEqual(Object.keys(S.STATE.deployments).length, 1);
+  assert.strictEqual(S.STATE.version, 2); assert.ok(/Web App/.test(G.showLinks()));
+});
+
 console.log('\n23. remove demo data (keeps real CSV data)');
 test('removeDemoData deletes only demo rows', () => {
   const n = G.removeDemoData(); assert.strictEqual(n, 4);

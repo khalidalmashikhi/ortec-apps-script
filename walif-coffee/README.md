@@ -21,13 +21,25 @@
 | `Reports.gs` | بيانات التقارير + Google Docs → PDF في `Reports/YYYY/MM` |
 | `EmailReports.gs` | التقرير اليومي بالبريد والمشغل Trigger |
 | `Settings.gs` | إعدادات المدير |
+| `Deploy.gs` | `deployWebApp()` و`showLinks()`: إنشاء/تحديث نشر Web App عبر Apps Script API |
 | `Tests.gs` | `runSmokeTest()` داخل المحرر |
+| `installer/` | المثبّت الذاتي (لا يُدفع إلى المشروع) |
 | `Index.html` `Login.html` `Accountant.html` `Dashboard.html` `Styles.html` `Scripts.html` | الواجهة العربية RTL المتجاوبة |
 | `appsscript.json` | المنطقة الزمنية Asia/Muscat، الصلاحيات، إعداد Web App |
 
 ## النشر (مرة واحدة)
 
-### الطريقة A — بواسطة clasp (موصى بها)
+### الطريقة A — المثبّت الذاتي من داخل المحرر (الأسهل، بلا أدوات على الجهاز)
+
+1. فعّل **Google Apps Script API** من https://script.google.com/home/usersettings (مرة واحدة).
+2. في محرر Apps Script المرتبط بالملف: ⚙️ Project Settings → فعّل "Show appsscript.json manifest file in editor".
+3. افتح `appsscript.json` في المحرر واستبدل محتواه بمحتوى `installer/appsscript.json`.
+4. افتح `Code.gs` واستبدل محتواه بمحتوى `installer/Installer.gs` ثم احفظ.
+5. اختر الدالة `installWalifCoffee` واضغط Run ووافق على الصلاحيات. تُنزَّل كل ملفات المشروع من GitHub وتُكتب في المشروع.
+6. أعد تحميل صفحة المحرر: ستجد 20 ملف `.gs` و6 ملفات HTML.
+7. شغّل `setupSystem` ووافق على الصلاحيات، ثم شغّل `deployWebApp` وستجد رابط Web App في Execution log (أو شغّل `showLinks`).
+
+### الطريقة B — بواسطة clasp
 
 ```bash
 npm i -g @google/clasp
@@ -57,6 +69,11 @@ clasp push -f                    # يرفع كل ملفات .gs و .html و apps
 5. التقرير اليومي مضبوط افتراضيًا على khalid98115159@gmail.com الساعة 8 صباحًا (تقرير اليوم السابق) ويُنشأ الـ Trigger أثناء `setupSystem`. من حساب المدير → الإعدادات يمكن تغيير البريد أو الساعة، واضغط "إرسال تقرير تجريبي الآن" للتحقق.
 6. **غيّر كلمات المرور التجريبية** من صفحة الإعدادات قبل الاستخدام الفعلي.
 7. عند أي تعديل لاحق في الكود: `clasp push` ثم Deploy → Manage deployments → Edit → New version، حتى يبقى الرابط نفسه.
+
+## الروابط
+
+- Google Sheet: https://docs.google.com/spreadsheets/d/1HfsBDCDY5Wyy0A18fnG_VGYO0xYC9tjMMOkQN9e2nxQ/edit
+- مشروع Apps Script: https://script.google.com/home/projects/1r-qeHMzlTbvtp70wD_lWA0jzzYtzK-jKSwQBJeIpBhJcbIjPv7nNHqb/edit
 
 ## الحسابات التجريبية
 
