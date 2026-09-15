@@ -285,7 +285,9 @@ test('installer fetches every project file and PUTs them as project content', ()
 test('deployWebApp creates a deployment, then updates the same one', () => {
   const url1 = G.deployWebApp(); assert.ok(/\/macros\/s\/AKfy.*\/exec$/.test(url1), url1);
   const url2 = G.deployWebApp(); assert.strictEqual(url2, url1, 'URL must stay stable'); assert.strictEqual(Object.keys(S.STATE.deployments).length, 1);
-  assert.strictEqual(S.STATE.version, 2); assert.ok(/Web App/.test(G.showLinks()));
+  delete S.STATE.props.DEPLOYMENT_ID; // e.g. deployment was created by clasp: must be discovered, not duplicated
+  const url3 = G.deployWebApp(); assert.strictEqual(url3, url1); assert.strictEqual(Object.keys(S.STATE.deployments).length, 1);
+  assert.strictEqual(S.STATE.version, 3); assert.ok(/Web App/.test(G.showLinks()));
 });
 
 console.log('\n23. remove demo data (keeps real CSV data)');

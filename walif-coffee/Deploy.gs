@@ -26,6 +26,15 @@ function deployWebApp() {
   var version = scriptApi_('post', '/versions', { description: desc });
   var p = props_();
   var depId = p.getProperty('DEPLOYMENT_ID');
+  if (!depId) {
+    // Reuse a web-app deployment created earlier (e.g. by clasp) so the public URL never changes.
+    var list = scriptApi_('get', '/deployments');
+    (list.deployments || []).forEach(function (d) {
+      var isHead = !d.deploymentConfig || !d.deploymentConfig.versionNumber;
+      var isWeb = (d.entryPoints || []).some(function (ep) { return ep.entryPointType === 'WEB_APP'; });
+      if (!depId && !isHead && (isWeb || /Walif/i.test(d.deploymentConfig.description || ''))) depId = d.deploymentId;
+    });
+  }
   var config = { deploymentConfig: { scriptId: ScriptApp.getScriptId(), versionNumber: version.versionNumber, manifestFileName: 'appsscript', description: desc } };
   var dep = null;
   if (depId) {

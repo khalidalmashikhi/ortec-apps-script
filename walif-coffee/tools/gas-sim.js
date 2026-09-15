@@ -136,6 +136,7 @@ const UrlFetchApp = { fetch(url, opts) {
     if (opts.method === 'put') d.versionNumber = JSON.parse(opts.payload).deploymentConfig.versionNumber;
     return reply(200, { deploymentId: m[1], entryPoints: [{ entryPointType: 'WEB_APP', webApp: { url: 'https://script.google.com/macros/s/' + m[1] + '/exec' } }] });
   }
+  if (/\/deployments$/.test(url) && opts.method === 'get') return reply(200, { deployments: [{ deploymentId: 'HEAD1', deploymentConfig: {} }].concat(Object.keys(STATE.deployments).map(id => ({ deploymentId: id, deploymentConfig: { versionNumber: STATE.deployments[id].versionNumber, description: 'Walif Coffee' }, entryPoints: [{ entryPointType: 'WEB_APP', webApp: { url: 'https://script.google.com/macros/s/' + id + '/exec' } }] }))) });
   if (/\/deployments$/.test(url) && opts.method === 'post') { const id = 'AKfy' + crypto.randomUUID().slice(0, 8); STATE.deployments[id] = { versionNumber: JSON.parse(opts.payload).versionNumber }; return reply(200, { deploymentId: id }); }
   return reply(500, 'unhandled ' + url);
 } };
