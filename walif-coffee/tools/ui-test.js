@@ -31,8 +31,8 @@ const OUT = path.join(__dirname, '..', 'tests', 'screenshots'); fs.mkdirSync(OUT
   console.log('\nAccountant flow (mobile 390px)');
   let page = await newPage({ width: 390, height: 844 });
   await step('login page renders', async () => { await page.goto(BASE); await page.waitForSelector('#loginForm', { state: 'visible' }); await page.screenshot({ path: OUT + '/01-login-mobile.png' }); });
-  await step('wrong password shows error', async () => { await page.fill('#loginUser', 'accountant'); await page.fill('#loginPass', 'x'); await page.click('#loginBtn'); await page.waitForSelector('#loginError:not(.hidden)'); });
-  await step('accountant/1234 logs in, sees accountant view only', async () => {
+  await step('wrong password shows error', async () => { await page.fill('#loginUser', 'ac'); await page.fill('#loginPass', 'x'); await page.click('#loginBtn'); await page.waitForSelector('#loginError:not(.hidden)'); });
+  await step('ac/1234 logs in, sees accountant view only', async () => {
     await page.fill('#loginPass', '1234'); await page.click('#loginBtn');
     await page.waitForSelector('#view-accountant:not(.hidden)');
     if (!(await page.locator('#view-manager').evaluate(e => e.classList.contains('hidden')))) throw new Error('manager view visible to accountant');
@@ -92,8 +92,8 @@ const OUT = path.join(__dirname, '..', 'tests', 'screenshots'); fs.mkdirSync(OUT
 
   console.log('\nManager flow (desktop 1280px)');
   page = await newPage({ width: 1280, height: 900 });
-  await step('manager/2026 logs in, dashboard renders KPIs + demo warning', async () => {
-    await page.goto(BASE); await page.fill('#loginUser', 'manager'); await page.fill('#loginPass', '2026'); await page.click('#loginBtn');
+  await step('admin/2026 logs in, dashboard renders KPIs + demo warning', async () => {
+    await page.goto(BASE); await page.fill('#loginUser', 'admin'); await page.fill('#loginPass', '2026'); await page.click('#loginBtn');
     await page.waitForSelector('#view-manager:not(.hidden)'); await page.waitForSelector('#kpis .kpi');
     if (await page.locator('#kpis .kpi').count() !== 14) throw new Error('14 KPI cards expected');
     if (await page.locator('#demoWarning').evaluate(e => e.classList.contains('hidden'))) throw new Error('demo warning missing');
@@ -133,7 +133,7 @@ const OUT = path.join(__dirname, '..', 'tests', 'screenshots'); fs.mkdirSync(OUT
     if (!(await page.locator('#triggerState').innerText()).includes('✅')) throw new Error('trigger state');
     await page.click('#btnTestEmail'); await page.click('#mOk'); await page.waitForSelector('.toast.ok', { timeout: 5000 });
     const st = await (await fetch(BASE + '/__state')).json(); if (st.mails < 1 || st.triggers !== 1) throw new Error(JSON.stringify(st));
-    await page.selectOption('#pwUser', 'accountant'); await page.fill('#passwordForm [name=newPassword]', 'secret99'); await page.fill('#passwordForm [name=confirm]', 'secret99'); await page.click('#passwordForm button[type=submit]'); await page.waitForSelector('.toast.ok');
+    await page.selectOption('#pwUser', 'ac'); await page.fill('#passwordForm [name=newPassword]', 'secret99'); await page.fill('#passwordForm [name=confirm]', 'secret99'); await page.click('#passwordForm button[type=submit]'); await page.waitForSelector('.toast.ok');
     await page.screenshot({ path: OUT + '/07-settings.png', fullPage: true });
   });
   await step('audit log shows actions', async () => {
@@ -141,7 +141,7 @@ const OUT = path.join(__dirname, '..', 'tests', 'screenshots'); fs.mkdirSync(OUT
     const t = await page.locator('#auditWrap').innerText(); for (const a of ['IMPORT_SALES', 'ADD_PURCHASE', 'CANCEL_RECORD', 'SEND_EMAIL', 'CHANGE_PASSWORD']) if (!t.includes(a)) throw new Error('missing ' + a);
   });
   await step('mobile dashboard renders without horizontal overflow', async () => {
-    const m = await newPage({ width: 390, height: 844 }); await m.goto(BASE); await m.fill('#loginUser', 'manager'); await m.fill('#loginPass', '2026'); await m.click('#loginBtn');
+    const m = await newPage({ width: 390, height: 844 }); await m.goto(BASE); await m.fill('#loginUser', 'admin'); await m.fill('#loginPass', '2026'); await m.click('#loginBtn');
     await m.waitForSelector('#kpis .kpi'); const sw = await m.evaluate(() => document.documentElement.scrollWidth); if (sw > 400) { const wide = await m.evaluate(() => Array.from(document.querySelectorAll('body *')).filter(e => e.getBoundingClientRect().right > 395).slice(0, 8).map(e => e.tagName + '#' + e.id + '.' + e.className)); throw new Error('page overflows: ' + sw + ' ' + JSON.stringify(wide)); }
     await m.screenshot({ path: OUT + '/08-dashboard-mobile.png', fullPage: true });
   });

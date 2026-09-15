@@ -38,7 +38,7 @@ test('setupSystem creates sheets, folders, users, settings', () => {
 test('Users sheet holds no password / hash', () => {
   const cells = S.ss.getSheetByName('Users').data.flat().map(String);
   assert.ok(!cells.some(c => c === '1234' || c === '2026' || /^[0-9a-f]{64}$/i.test(c)), 'Users sheet leaks secrets: ' + cells.join(' '));
-  assert.ok(S.STATE.props.WC_USER_manager && JSON.parse(S.STATE.props.WC_USER_manager).salt, 'hash+salt in properties');
+  assert.ok(S.STATE.props.WC_USER_admin && JSON.parse(S.STATE.props.WC_USER_admin).salt, 'hash+salt in properties');
 });
 test('setupSystem is idempotent (demo data created once)', () => {
   assert.strictEqual(S.ss.getSheetByName('Purchases').getLastRow(), 2, 'one demo purchase');
@@ -50,10 +50,10 @@ test('setupSystem is idempotent (demo data created once)', () => {
 
 console.log('\n3-4. accountant login + authorization');
 let acc, mgr;
-test('login accountant/1234', () => { acc = ok(G.api_login('accountant', '1234')); assert.strictEqual(acc.user.role, 'accountant'); assert.ok(acc.demoPasswordsActive); });
-test('wrong password fails + audited', () => { const r = G.api_login('manager', 'wrong'); assert.ok(!r.ok); assert.ok(S.ss.getSheetByName('Audit_Log').data.some(r => r[3] === 'LOGIN' && r[7] === 'FAILED')); });
+test('login ac/1234', () => { acc = ok(G.api_login('ac', '1234')); assert.strictEqual(acc.user.role, 'accountant'); assert.ok(acc.demoPasswordsActive); });
+test('wrong password fails + audited', () => { const r = G.api_login('admin', 'wrong'); assert.ok(!r.ok); assert.ok(S.ss.getSheetByName('Audit_Log').data.some(r => r[3] === 'LOGIN' && r[7] === 'FAILED')); });
 test('accountant cannot reach manager APIs', () => {
-  for (const [fn, args] of [['api_getDashboard', [{}]], ['api_getSettings', []], ['api_getAuditLog', [50]], ['api_cancelRecord', ['expenses', 'x', 'r']], ['api_changePassword', ['manager', 'abcdef']], ['api_generateReportPdf', ['daily']], ['api_sendTestReport', []], ['api_rebuildTrigger', []], ['api_listSales', [{}]]]) {
+  for (const [fn, args] of [['api_getDashboard', [{}]], ['api_getSettings', []], ['api_getAuditLog', [50]], ['api_cancelRecord', ['expenses', 'x', 'r']], ['api_changePassword', ['admin', 'abcdef']], ['api_generateReportPdf', ['daily']], ['api_sendTestReport', []], ['api_rebuildTrigger', []], ['api_listSales', [{}]]]) {
     const r = G[fn].apply(null, [acc.token].concat(args)); assert.ok(r.ok === false && r.code === 'FORBIDDEN', fn + ' should be forbidden: ' + JSON.stringify(r));
   }
 });
@@ -94,7 +94,7 @@ test('import writes rows + import log', () => {
   const log = S.ss.getSheetByName('Sales_Imports').data[1]; assert.strictEqual(log[7], 18); assert.strictEqual(log[13], 'OK');
   const raw = S.ss.getSheetByName('Sales_Raw'); const hdr = raw.data[0]; const first = raw.data[1];
   assert.ok(first[hdr.indexOf('Date')] instanceof Date, 'Date stored as Date');
-  assert.strictEqual(first[hdr.indexOf('Imported By')], 'accountant');
+  assert.strictEqual(first[hdr.indexOf('Imported By')], 'ac');
   assert.ok(String(first[hdr.indexOf('Unique Key')]).indexOf('Walif Main|1-1001|') === 0);
 });
 test('re-importing the same file imports 0 and reports 19 duplicates', () => {
@@ -148,14 +148,14 @@ test('add payroll (net computed server-side)', () => {
 });
 test('add rent', () => { rentId = ok(G.api_addRent(acc.token, { period: '2026-09', landlord: 'المالك', amount: 200, dueDate: '2026-09-01', paymentDate: '2026-09-13', paymentMethod: 'تحويل بنكي', status: 'مدفوع' }, null)).id; });
 test('accountant lists only own records, cannot cancel', () => {
-  const r = ok(G.api_listPurchases(acc.token, {})); assert.strictEqual(r.rows.length, 2); assert.ok(r.rows.every(x => x['Created By'] === 'accountant'));
+  const r = ok(G.api_listPurchases(acc.token, {})); assert.strictEqual(r.rows.length, 2); assert.ok(r.rows.every(x => x['Created By'] === 'ac'));
   assert.ok(r.rows[0]['Dedupe Key'] === undefined);
   const c = G.api_cancelRecord(acc.token, 'purchases', purchaseId, 'x'); assert.ok(!c.ok && c.code === 'FORBIDDEN');
 });
 
 console.log('\n14-18. manager dashboard + financial rules');
 let dash;
-test('login manager/2026', () => { mgr = ok(G.api_login('manager', '2026')); assert.strictEqual(mgr.user.role, 'manager'); });
+test('login admin/2026', () => { mgr = ok(G.api_login('admin', '2026')); assert.strictEqual(mgr.user.role, 'manager'); });
 test('dashboard numbers for 2026-09-13..15', () => {
   dash = ok(G.api_getDashboard(mgr.token, { preset: 'custom', from: '2026-09-13', to: TODAY }));
   const k = dash.kpis;
@@ -253,15 +253,22 @@ test('trigger job runs (previous day) and logs; failure goes to Error_Log withou
 
 console.log('\nsecurity: passwords, sessions, logs');
 test('change password, demo warning clears only when both changed', () => {
-  let r = G.api_changePassword(mgr.token, 'accountant', '1234'); assert.ok(!r.ok);
-  r = ok(G.api_changePassword(mgr.token, 'accountant', 'newpass1')); assert.ok(r.demoPasswordsActive === true);
-  assert.ok(!G.api_login('accountant', '1234').ok); assert.ok(G.api_login('accountant', 'newpass1').ok);
-  r = ok(G.api_changePassword(mgr.token, 'manager', 'managerpass')); assert.ok(r.demoPasswordsActive === false);
-  assert.ok(G.resetDemoPasswords()); assert.ok(G.api_login('manager', '2026').ok);
+  let r = G.api_changePassword(mgr.token, 'ac', '1234'); assert.ok(!r.ok);
+  r = ok(G.api_changePassword(mgr.token, 'ac', 'newpass1')); assert.ok(r.demoPasswordsActive === true);
+  assert.ok(!G.api_login('ac', '1234').ok); assert.ok(G.api_login('ac', 'newpass1').ok);
+  r = ok(G.api_changePassword(mgr.token, 'admin', 'managerpass')); assert.ok(r.demoPasswordsActive === false);
+  assert.ok(G.resetDemoPasswords()); assert.ok(G.api_login('admin', '2026').ok);
+});
+test('legacy manager/accountant demo accounts get deactivated, admin/ac created', () => {
+  G.createUser_('manager', '2026', 'manager', 'قديم', true); G.createUser_('accountant', 'x1y2z3', 'accountant', 'قديم مغيّر', false);
+  delete S.STATE.props.USERS_VERSION; G.doGet({});
+  assert.strictEqual(String(G.findUser_('manager').Status), 'INACTIVE', 'unchanged demo password → deactivated');
+  assert.strictEqual(String(G.findUser_('accountant').Status), 'ACTIVE', 'changed password → kept');
+  assert.ok(!G.api_login('manager', '2026').ok); assert.ok(G.api_login('admin', '2026').ok);
 });
 test('logout kills the session', () => { ok(G.api_logout(acc.token)); assert.ok(!G.api_bootstrap(acc.token).ok); });
 test('session expiry honoured', () => {
-  const s = ok(G.api_login('manager', '2026')); const key = G.sessionKey_(s.token);
+  const s = ok(G.api_login('admin', '2026')); const key = G.sessionKey_(s.token);
   const d = JSON.parse(S.STATE.props[key]); d.exp = Date.now() - 1; S.STATE.props[key] = JSON.stringify(d); S.STATE.cache[key] = JSON.stringify(d);
   assert.ok(!G.api_bootstrap(s.token).ok);
 });
@@ -271,7 +278,7 @@ test('audit/error logs never contain tokens or passwords', () => {
   const acts = new Set(S.ss.getSheetByName('Audit_Log').data.map(r => r[3]));
   for (const a of ['LOGIN', 'LOGOUT', 'UPLOAD_FILE', 'IMPORT_SALES', 'ADD_PURCHASE', 'ADD_EXPENSE', 'ADD_PAYROLL', 'ADD_RENT', 'UPDATE_RECORD', 'CANCEL_RECORD', 'DOWNLOAD_REPORT', 'SEND_EMAIL', 'CHANGE_SETTINGS', 'CREATE_TRIGGER', 'CHANGE_PASSWORD', 'FORBIDDEN']) assert.ok(acts.has(a), 'audit missing ' + a);
 });
-test('manager audit/users APIs', () => { assert.ok(ok(G.api_getAuditLog(mgr.token, 50)).rows.length > 10); assert.strictEqual(ok(G.api_listUsers(mgr.token)).users.length, 2); });
+test('manager audit/users APIs', () => { assert.ok(ok(G.api_getAuditLog(mgr.token, 50)).rows.length > 10); assert.strictEqual(ok(G.api_listUsers(mgr.token)).users.length, 4); });
 
 console.log('\ninstaller + self-deployment (Apps Script API mocked)');
 test('installer fetches every project file and PUTs them as project content', () => {

@@ -37,7 +37,7 @@ function runSmokeTest() {
   });
   var mgrToken = null, accToken = null;
   check('demo users can log in (or passwords already changed)', function () {
-    var m = api_login('manager', '2026'), a = api_login('accountant', '1234');
+    var m = api_login('admin', '2026'), a = api_login('ac', '1234');
     mgrToken = m.ok ? m.token : null; accToken = a.ok ? a.token : null;
     return true;
   });

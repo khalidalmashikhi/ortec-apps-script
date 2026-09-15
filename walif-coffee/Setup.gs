@@ -14,6 +14,7 @@ function setupSystem() {
     report.folders = ensureFolders_();
     ensureDefaultSettings_();
     report.users = ensureDemoUsers_();
+    migrateLegacyDemoUsers_();
     // Daily e-mail trigger: created here so the report is live right after setup (manager can change it later).
     var st = getAllSettings_();
     if (st.REPORT_ENABLED === 'true' && st.REPORT_EMAIL && !triggerInfo_().exists) {
@@ -173,6 +174,21 @@ function ensureDemoUsers_() {
     }
   });
   return created;
+}
+
+/** Older installs used manager/accountant. Deactivate them only if they still carry the demo password. */
+var LEGACY_DEMO_USERS_ = [{ username: 'manager', password: '2026' }, { username: 'accountant', password: '1234' }];
+function migrateLegacyDemoUsers_() {
+  if (props_().getProperty('USERS_VERSION') === WC.USERS_VERSION) return;
+  ensureDemoUsers_();
+  LEGACY_DEMO_USERS_.forEach(function (u) {
+    var row = findUser_(u.username);
+    if (row && String(row.Status) === 'ACTIVE' && verifyPassword_(u.username, u.password)) {
+      updateRowFields_(WC.SHEETS.USERS, row._row, { Status: 'INACTIVE' });
+      logAudit_({ username: 'system', role: 'system' }, 'DEACTIVATE_USER', 'Users', u.username, 'legacy demo account replaced', 'OK');
+    }
+  });
+  props_().setProperty('USERS_VERSION', WC.USERS_VERSION);
 }
 
 /** Resets ONLY the demo accounts' passwords. Never touches data. */

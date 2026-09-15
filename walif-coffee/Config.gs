@@ -82,8 +82,8 @@ var WC = {
   },
 
   DEMO_USERS: [
-    { username: 'accountant', password: '1234', role: 'accountant', displayName: 'المحاسب' },
-    { username: 'manager', password: '2026', role: 'manager', displayName: 'المدير' }
+    { username: 'ac', password: '1234', role: 'accountant', displayName: 'المحاسب' },
+    { username: 'admin', password: '2026', role: 'manager', displayName: 'المدير' }
   ]
 };
 

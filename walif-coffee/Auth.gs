@@ -34,7 +34,7 @@ function findUser_(username) {
 
 function createUser_(username, password, role, displayName, mustChange) {
   username = cleanText_(username, 40).toLowerCase();
-  if (!/^[a-z0-9_.-]{3,40}$/.test(username)) throw new Error('اسم مستخدم غير صالح.');
+  if (!/^[a-z0-9_.-]{2,40}$/.test(username)) throw new Error('اسم مستخدم غير صالح.');
   if (role !== WC.ROLES.MANAGER && role !== WC.ROLES.ACCOUNTANT) throw new Error('دور غير صالح.');
   setUserPassword_(username, password);
   appendObjects_(WC.SHEETS.USERS, [{

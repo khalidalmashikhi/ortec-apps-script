@@ -11,6 +11,8 @@ function doGet(e) {
   // First visit by the owner initialises everything (sheets, folders, users, trigger) automatically.
   if (props_().getProperty('SETUP_DONE') !== 'true') {
     try { setupSystem(); } catch (err) { logError_('doGet.setupSystem', null, err, ''); }
+  } else if (props_().getProperty('USERS_VERSION') !== WC.USERS_VERSION) {
+    try { withLock_(migrateLegacyDemoUsers_); } catch (err) { logError_('doGet.migrateUsers', null, err, ''); }
   }
   var t = HtmlService.createTemplateFromFile('Index');
   t.appName = WC.APP_NAME;
