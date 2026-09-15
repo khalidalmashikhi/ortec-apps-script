@@ -18,6 +18,9 @@ const csvBom = '\uFEFF' + csv;
 
 console.log('\n1-2. setupSystem()');
 let setupReport;
+test('first doGet runs setupSystem automatically', () => {
+  G.doGet({}); assert.strictEqual(S.STATE.props.SETUP_DONE, 'true'); assert.ok(S.ss.getSheetByName('Users'));
+});
 test('setupSystem creates sheets, folders, users, settings', () => {
   setupReport = G.setupSystem();
   const names = S.ss.getSheets().map(s => s.getName());
@@ -29,14 +32,15 @@ test('setupSystem creates sheets, folders, users, settings', () => {
   assert.ok(S.ss.getSheetByName('Users').hidden, 'Users hidden');
   assert.strictEqual(S.ss.getSheetByName('Sales_Raw').frozen, 1);
   assert.strictEqual(JSON.stringify(setupReport.users.slice().sort()), '["accountant","manager"]');
-  assert.ok(setupReport.demoData, 'demo data created on first run');
+  assert.ok(setupReport.alreadyDone, 'already initialised by doGet');
 });
 test('Users sheet holds no password / hash', () => {
   const cells = S.ss.getSheetByName('Users').data.flat().map(String);
   assert.ok(!cells.some(c => c === '1234' || c === '2026' || /^[0-9a-f]{64}$/i.test(c)), 'Users sheet leaks secrets: ' + cells.join(' '));
   assert.ok(S.STATE.props.WC_USER_manager && JSON.parse(S.STATE.props.WC_USER_manager).salt, 'hash+salt in properties');
 });
-test('setupSystem is idempotent', () => {
+test('setupSystem is idempotent (demo data created once)', () => {
+  assert.strictEqual(S.ss.getSheetByName('Purchases').getLastRow(), 2, 'one demo purchase');
   const before = S.ss.getSheetByName('Purchases').getLastRow();
   const r2 = G.setupSystem();
   assert.ok(r2.alreadyDone); assert.strictEqual(r2.sheets.length, 0); assert.strictEqual(r2.users.length, 0);

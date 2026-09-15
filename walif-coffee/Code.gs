@@ -8,6 +8,10 @@
  */
 
 function doGet(e) {
+  // First visit by the owner initialises everything (sheets, folders, users, trigger) automatically.
+  if (props_().getProperty('SETUP_DONE') !== 'true') {
+    try { setupSystem(); } catch (err) { logError_('doGet.setupSystem', null, err, ''); }
+  }
   var t = HtmlService.createTemplateFromFile('Index');
   t.appName = WC.APP_NAME;
   t.appNameAr = WC.APP_NAME_AR;

@@ -31,6 +31,7 @@ function setupSystem() {
       setSetting_('SETUP_DONE', 'true', 'system');
       setSetting_('SETUP_VERSION', WC.VERSION, 'system');
     }
+    props_().setProperty('SETUP_DONE', 'true');
     // Remove the default empty "Sheet1"/"ورقة1" if it still exists and is empty.
     var sheets = ss.getSheets();
     if (sheets.length > 1) {
