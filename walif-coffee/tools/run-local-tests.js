@@ -15,6 +15,7 @@ function test(name, fn) { try { fn(); passed++; console.log('  ✔', name); } ca
 function ok(r, label) { assert.ok(r && r.ok, (label || 'api') + ' failed: ' + (r && r.error)); return r; }
 const csv = fs.readFileSync(path.join(__dirname, '..', 'tests', 'sample-loyverse.csv'), 'utf8');
 const csvBom = '\uFEFF' + csv;
+const TODAY = G.todayStr_(); // demo rows are dated today (Muscat), so range assertions run up to today
 
 console.log('\n1-2. setupSystem()');
 let setupReport;
@@ -31,7 +32,7 @@ test('setupSystem creates sheets, folders, users, settings', () => {
   assert.strictEqual(S.ss.getSpreadsheetTimeZone(), 'Asia/Muscat');
   assert.ok(S.ss.getSheetByName('Users').hidden, 'Users hidden');
   assert.strictEqual(S.ss.getSheetByName('Sales_Raw').frozen, 1);
-  assert.strictEqual(JSON.stringify(setupReport.users.slice().sort()), '["accountant","manager"]');
+  assert.strictEqual(setupReport.users.length, 0, 'users already created by the doGet auto-setup');
   assert.ok(setupReport.alreadyDone, 'already initialised by doGet');
 });
 test('Users sheet holds no password / hash', () => {
@@ -156,7 +157,7 @@ console.log('\n14-18. manager dashboard + financial rules');
 let dash;
 test('login manager/2026', () => { mgr = ok(G.api_login('manager', '2026')); assert.strictEqual(mgr.user.role, 'manager'); });
 test('dashboard numbers for 2026-09-13..15', () => {
-  dash = ok(G.api_getDashboard(mgr.token, { preset: 'custom', from: '2026-09-13', to: '2026-09-15' }));
+  dash = ok(G.api_getDashboard(mgr.token, { preset: 'custom', from: '2026-09-13', to: TODAY }));
   const k = dash.kpis;
   assert.strictEqual(k.netSales, 33); // 31.8 sample + 1.2 evil row
   assert.strictEqual(k.cogs, 11.8);
@@ -188,13 +189,13 @@ test('breakdowns present', () => {
   assert.ok(dash.options.items.includes('Espresso'));
 });
 test('filters: cashier + preset today', () => {
-  const r = ok(G.api_getDashboard(mgr.token, { preset: 'custom', from: '2026-09-13', to: '2026-09-15', cashier: 'Salim' }));
+  const r = ok(G.api_getDashboard(mgr.token, { preset: 'custom', from: '2026-09-13', to: TODAY, cashier: 'Salim' }));
   assert.strictEqual(r.kpis.netSales, G.round3_(4.5 + 2 + 2.2 + 3 + 1.5 + 3 + 0.9 + 2.5));
   const t = ok(G.api_getDashboard(mgr.token, { preset: 'today' })); assert.strictEqual(t.range.from, t.range.to);
 });
 test('cancelled record leaves the numbers', () => {
   ok(G.api_cancelRecord(mgr.token, 'expenses', expenseId, 'خطأ في الإدخال'));
-  const r = ok(G.api_getDashboard(mgr.token, { preset: 'custom', from: '2026-09-13', to: '2026-09-15' }));
+  const r = ok(G.api_getDashboard(mgr.token, { preset: 'custom', from: '2026-09-13', to: TODAY }));
   assert.strictEqual(r.kpis.expenses, 7 + 15);
   const again = G.api_cancelRecord(mgr.token, 'expenses', expenseId, 'x'); assert.ok(!again.ok);
   const list = ok(G.api_listExpenses(mgr.token, { status: 'CANCELLED' })); assert.strictEqual(list.rows.length, 1); assert.strictEqual(list.rows[0]['Cancel Reason'], 'خطأ في الإدخال');
@@ -207,9 +208,9 @@ test('update record with reason re-validates', () => {
   const nor = G.api_updateRecord(mgr.token, 'payroll', payrollId, { Deduction: 5 }, ''); assert.ok(!nor.ok);
 });
 test('manager sales list + cancel a sales row', () => {
-  const r = ok(G.api_listSales(mgr.token, { from: '2026-09-13', to: '2026-09-15' })); assert.strictEqual(r.total, 19);
+  const r = ok(G.api_listSales(mgr.token, { from: '2026-09-13', to: TODAY })); assert.strictEqual(r.total, 19);
   const evil = r.rows.find(x => x.receipt === '9-9999'); ok(G.api_cancelRecord(mgr.token, 'sales', evil.id, 'سجل اختبار'));
-  const d = ok(G.api_getDashboard(mgr.token, { preset: 'custom', from: '2026-09-13', to: '2026-09-15' })); assert.strictEqual(d.kpis.netSales, 31.8);
+  const d = ok(G.api_getDashboard(mgr.token, { preset: 'custom', from: '2026-09-13', to: TODAY })); assert.strictEqual(d.kpis.netSales, 31.8);
 });
 
 console.log('\n19-20. PDF report + e-mail');
@@ -291,7 +292,7 @@ console.log('\n23. remove demo data (keeps real CSV data)');
 test('removeDemoData deletes only demo rows', () => {
   const n = G.removeDemoData(); assert.strictEqual(n, 4);
   assert.strictEqual(S.ss.getSheetByName('Sales_Raw').getLastRow(), 20);
-  const d = ok(G.api_getDashboard(mgr.token, { preset: 'custom', from: '2026-09-13', to: '2026-09-15' }));
+  const d = ok(G.api_getDashboard(mgr.token, { preset: 'custom', from: '2026-09-13', to: TODAY }));
   assert.strictEqual(d.kpis.inventoryPurchases, 42); assert.strictEqual(d.kpis.rent, 200); assert.strictEqual(d.kpis.payroll, 330);
 });
 
