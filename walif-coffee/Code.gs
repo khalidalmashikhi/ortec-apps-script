@@ -3,7 +3,7 @@
  * Web entry point + common API wrapper.
  *
  * Files: Config, Utils, Setup, Auth, Audit, SalesImport, Purchases, Expenses, Payroll, Rent, Records,
- *        Attachments, Dashboard, Reports, EmailReports, Settings, Tests
+ *        Attachments, Analytics, Reports, EmailReports, Settings, Tests
  * HTML : Index, Login, Accountant, Dashboard, Styles, Scripts
  */
 

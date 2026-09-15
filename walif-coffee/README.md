@@ -17,7 +17,7 @@
 | `Purchases.gs` `Expenses.gs` `Payroll.gs` `Rent.gs` | التحقق على الخادم + الحفظ داخل LockService |
 | `Attachments.gs` | حفظ المرفقات في `Walif Coffee Accounting/Invoices/YYYY/MM` |
 | `Records.gs` | القوائم، الإلغاء بسبب (ACTIVE/CANCELLED)، التعديل بسبب |
-| `Dashboard.gs` | المحرك المالي (ربح محاسبي + حركة نقدية) والتجميعات والفلاتر |
+| `Analytics.gs` | المحرك المالي (ربح محاسبي + حركة نقدية) والتجميعات والفلاتر |
 | `Reports.gs` | بيانات التقارير + Google Docs → PDF في `Reports/YYYY/MM` |
 | `EmailReports.gs` | التقرير اليومي بالبريد والمشغل Trigger |
 | `Settings.gs` | إعدادات المدير |
