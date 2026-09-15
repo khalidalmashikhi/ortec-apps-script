@@ -1,0 +1,5 @@
+tools/**
+tests/**
+**/*.md
+.clasp.json
+.claspignore

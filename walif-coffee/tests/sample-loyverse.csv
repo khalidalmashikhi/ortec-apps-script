@@ -1,0 +1,21 @@
+Date,Receipt number,Receipt type,Category,SKU,Item,Variant,Modifiers applied,Quantity,Gross sales,Discounts,Net sales,Cost of goods,Gross profit,Taxes,POS,Store,Cashier name,Customer name,Customer contacts,Comment,Status
+2026-09-13 08:12:00,1-1001,Sale,Hot Drinks,10001,Espresso,Single,,2,1.200,0.000,1.200,0.400,0.800,0.000,POS 1,Walif Main,Ahmed,,,,Closed
+2026-09-13 08:12:00,1-1001,Sale,Bakery,20001,Croissant,,,1,0.800,0.000,0.800,0.350,0.450,0.000,POS 1,Walif Main,Ahmed,,,,Closed
+2026-09-13 09:40:00,1-1002,Sale,Hot Drinks,10002,Cappuccino,Large,Extra shot,1,1.500,0.100,1.400,0.500,0.900,0.000,POS 1,Walif Main,Ahmed,,,,Closed
+2026-09-13 10:05:00,1-1003,Sale,Cold Drinks,10003,Iced Latte,,,3,4.500,0.000,4.500,1.500,3.000,0.000,POS 1,Walif Main,Salim,"Al Balushi, Said",,"Table ""5""",Closed
+2026-09-13 12:30:00,1-1004,Sale,Hot Drinks,10004,Karak Tea,,,4,2.000,0.000,2.000,0.600,1.400,0.000,POS 2,Walif Main,Salim,,,,Closed
+2026-09-13 14:00:00,1-1005,Refund,Hot Drinks,10002,Cappuccino,Large,,-1,-1.500,0.000,-1.500,-0.500,-1.000,0.000,POS 1,Walif Main,Ahmed,,,,Closed
+2026-09-13 17:45:00,1-1006,Sale,Bakery,20002,Cheesecake,,,2,2.400,0.200,2.200,1.000,1.200,0.000,POS 2,Walif Main,Salim,,,,Closed
+2026-09-13 19:10:00,1-1007,Sale,Cold Drinks,10005,Mojito,,,2,3.000,0.000,3.000,1.000,2.000,0.000,POS 2,Walif Main,Salim,,,,Closed
+2026-09-14 08:30:00,1-1008,Sale,Hot Drinks,10001,Espresso,Single,,3,1.800,0.000,1.800,0.600,1.200,0.000,POS 1,Walif Main,Ahmed,,,,Closed
+2026-09-14 08:30:00,1-1008,Sale,Bakery,20001,Croissant,,,2,1.600,0.000,1.600,0.700,0.900,0.000,POS 1,Walif Main,Ahmed,,,,Closed
+2026-09-14 11:15:00,1-1009,Sale,Hot Drinks,10006,Flat White,,,2,2.800,0.300,2.500,0.900,1.600,0.000,POS 1,Walif Main,Ahmed,,,,Closed
+2026-09-14 13:20:00,1-1010,Sale,Cold Drinks,10003,Iced Latte,,,1,1.500,0.000,1.500,0.500,1.000,0.000,POS 2,Walif Main,Salim,,,,Closed
+2026-09-14 16:00:00,1-1011,Sale,Hot Drinks,10004,Karak Tea,,,6,3.000,0.000,3.000,0.900,2.100,0.000,POS 2,Walif Main,Salim,,,,Closed
+2026-09-14 18:40:00,1-1012,Sale,Bakery,20003,Brownie,,,1,0.900,0.000,0.900,0.400,0.500,0.000,POS 2,Walif Main,Salim,,,,Closed
+2026-09-14 20:00:00,1-1013,Sale,Cold Drinks,10005,Mojito,,,1,1.500,0.000,1.500,0.500,1.000,0.000,POS 1,Walif Main,Ahmed,,,,Cancelled
+2026-09-15 07:55:00,1-1014,Sale,Hot Drinks,10001,Espresso,Double,,1,0.800,0.000,0.800,0.250,0.550,0.000,POS 1,Walif Main,Ahmed,,,,Closed
+2026-09-15 09:05:00,1-1015,Sale,Hot Drinks,10002,Cappuccino,Regular,,2,2.400,0.000,2.400,0.800,1.600,0.000,POS 1,Walif Main,Ahmed,,,,Closed
+2026-09-15 09:05:00,1-1015,Sale,Bakery,20002,Cheesecake,,,1,1.200,0.000,1.200,0.500,0.700,0.000,POS 1,Walif Main,Ahmed,,,,Closed
+2026-09-15 09:05:00,1-1015,Sale,Bakery,20002,Cheesecake,,,1,1.200,0.000,1.200,0.500,0.700,0.000,POS 1,Walif Main,Ahmed,,,,Closed
+2026-09-15 11:30:00,1-1016,Sale,Cold Drinks,10003,Iced Latte,,,2,3.000,0.500,2.500,1.000,1.500,0.000,POS 2,Walif Main,Salim,,,,Closed

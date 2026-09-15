@@ -1,0 +1,434 @@
+<div class="tabs" id="mgrTabs">
+  <button data-tab="mgr-dash" class="active" type="button">📊 لوحة التحكم</button>
+  <button data-tab="mgr-sales" type="button">🧾 المبيعات</button>
+  <button data-tab="mgr-records" type="button">📂 المشتريات والمصروفات</button>
+  <button data-tab="mgr-reports" type="button">📄 التقارير</button>
+  <button data-tab="mgr-settings" type="button">⚙️ الإعدادات</button>
+  <button data-tab="mgr-audit" type="button">🕵️ سجل العمليات</button>
+</div>
+
+<!-- ============ Dashboard ============ -->
+<section id="mgr-dash" class="mgr-tab">
+  <div class="card">
+    <div class="row" style="margin-bottom:.6rem" id="presetChips">
+      <button class="chip" data-preset="today" type="button">اليوم</button>
+      <button class="chip" data-preset="yesterday" type="button">أمس</button>
+      <button class="chip" data-preset="last7" type="button">آخر 7 أيام</button>
+      <button class="chip active" data-preset="this_month" type="button">هذا الشهر</button>
+      <button class="chip" data-preset="last_month" type="button">الشهر السابق</button>
+      <button class="chip" data-preset="custom" type="button">فترة مخصصة</button>
+    </div>
+    <div class="filters">
+      <div><label>من</label><input type="date" id="fFrom"></div>
+      <div><label>إلى</label><input type="date" id="fTo"></div>
+      <div><label>الفرع</label><select id="fStore"><option value="">الكل</option></select></div>
+      <div><label>جهاز البيع</label><select id="fPos"><option value="">الكل</option></select></div>
+      <div><label>الكاشير</label><select id="fCashier"><option value="">الكل</option></select></div>
+      <div><label>التصنيف</label><select id="fCategory"><option value="">الكل</option></select></div>
+      <div><label>الصنف</label><select id="fItem"><option value="">الكل</option></select></div>
+      <div><button class="btn" id="btnApplyFilters" type="button" style="width:100%;justify-content:center">تطبيق</button></div>
+    </div>
+    <div class="muted" id="rangeLabel" style="margin-top:.5rem"></div>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+  <div class="alert info" id="dashNote" style="margin-top:.8rem"></div>
+
+  <div class="card">
+    <h3>مطابقة الربح والنقد</h3>
+    <div class="tbl-wrap"><table id="reconTable"><tbody></tbody></table></div>
+  </div>
+
+  <div class="grid cols-2">
+    <div class="card"><h3>المبيعات اليومية</h3><div class="chart" id="chDaily"></div></div>
+    <div class="card"><h3>الربح اليومي</h3><div class="chart" id="chProfit"></div></div>
+    <div class="card"><h3>توزيع المصروفات</h3><div class="chart" id="chExpenses"></div></div>
+    <div class="card"><h3>أفضل الأصناف</h3><div class="chart" id="chTop"></div></div>
+    <div class="card"><h3>المبيعات مقابل المصروفات</h3><div class="chart" id="chCompare"></div></div>
+    <div class="card"><h3>اتجاه صافي الربح</h3><div class="chart" id="chTrend"></div></div>
+  </div>
+
+  <div class="grid cols-2">
+    <div class="card"><h3>المبيعات اليومية</h3><div class="tbl-wrap" id="tDaily"></div></div>
+    <div class="card"><h3>المبيعات حسب الساعة</h3><div class="tbl-wrap" id="tHourly"></div></div>
+    <div class="card"><h3>أفضل 10 أصناف</h3><div class="tbl-wrap" id="tTop"></div></div>
+    <div class="card"><h3>الأصناف الأقل مبيعًا</h3><div class="tbl-wrap" id="tBottom"></div></div>
+    <div class="card"><h3>المبيعات حسب التصنيف</h3><div class="tbl-wrap" id="tCat"></div></div>
+    <div class="card"><h3>الخصومات</h3><div class="tbl-wrap" id="tDiscounts"></div></div>
+    <div class="card"><h3>المبيعات حسب الكاشير</h3><div class="tbl-wrap" id="tCashier"></div></div>
+    <div class="card"><h3>المبيعات حسب الفرع / نقطة البيع</h3><div class="tbl-wrap" id="tStore"></div></div>
+    <div class="card"><h3>المشتريات حسب المورد</h3><div class="tbl-wrap" id="tSupplier"></div></div>
+    <div class="card"><h3>المشتريات حسب التصنيف</h3><div class="tbl-wrap" id="tPurCat"></div></div>
+    <div class="card"><h3>المصروفات حسب النوع</h3><div class="tbl-wrap" id="tExpType"></div></div>
+    <div class="card"><h3>الرواتب حسب الشهر</h3><div class="tbl-wrap" id="tPayroll"></div></div>
+    <div class="card"><h3>الإيجارات وحالة الدفع</h3><div class="tbl-wrap" id="tRent"></div></div>
+    <div class="card"><h3>مقارنة شهرية: المبيعات والمصروفات والربح</h3><div class="tbl-wrap" id="tMonthly"></div></div>
+  </div>
+  <div class="card"><h3>مقارنة يومية: المبيعات والمصروفات والربح</h3><div class="tbl-wrap" id="tCompareDaily"></div></div>
+</section>
+
+<!-- ============ Sales list ============ -->
+<section id="mgr-sales" class="mgr-tab hidden">
+  <div class="card">
+    <div class="section-title"><h2>سجلات المبيعات المستوردة</h2>
+      <div class="row"><input type="date" id="sFrom" style="width:auto"><input type="date" id="sTo" style="width:auto"><button class="btn sm" id="btnLoadSales" type="button">عرض</button></div>
+    </div>
+    <div class="muted" id="salesCount"></div>
+    <div class="tbl-wrap" id="salesTableWrap"></div>
+  </div>
+  <div class="card soft">
+    <div class="section-title"><h3>سجل عمليات الاستيراد</h3><button class="btn sm secondary" id="btnMgrImports" type="button">تحديث</button></div>
+    <div class="tbl-wrap" id="mgrImportsWrap"></div>
+  </div>
+</section>
+
+<!-- ============ Records ============ -->
+<section id="mgr-records" class="mgr-tab hidden">
+  <div class="card">
+    <div class="section-title"><h2>المشتريات والمصروفات والرواتب والإيجارات</h2>
+      <div class="row">
+        <select id="mrEntity" style="width:auto"><option value="purchases">المشتريات</option><option value="expenses">المصروفات</option><option value="payroll">الرواتب</option><option value="rent">الإيجارات</option></select>
+        <input type="date" id="mrFrom" style="width:auto"><input type="date" id="mrTo" style="width:auto">
+        <select id="mrStatus" style="width:auto"><option value="">الكل</option><option value="ACTIVE">فعّال</option><option value="CANCELLED">ملغى</option></select>
+        <button class="btn sm" id="btnMgrRecords" type="button">عرض</button>
+      </div>
+    </div>
+    <div class="tbl-wrap" id="mgrRecordsWrap"></div>
+  </div>
+</section>
+
+<!-- ============ Reports ============ -->
+<section id="mgr-reports" class="mgr-tab hidden">
+  <div class="card">
+    <h2>التقارير</h2>
+    <div class="filters">
+      <div><label>نوع التقرير</label>
+        <select id="rType">
+          <option value="daily">تقرير يومي</option><option value="weekly">تقرير أسبوعي</option><option value="monthly">تقرير شهري</option>
+          <option value="custom">تقرير فترة مخصصة</option><option value="purchases">تقرير مشتريات</option><option value="expenses">تقرير مصروفات</option>
+          <option value="payroll">تقرير رواتب</option><option value="rent">تقرير إيجارات</option><option value="pnl">تقرير ربح وخسارة</option><option value="cashflow">تقرير حركة نقدية</option>
+        </select></div>
+      <div><label>من / التاريخ</label><input type="date" id="rFrom"></div>
+      <div><label>إلى</label><input type="date" id="rTo"></div>
+      <div><button class="btn secondary" id="btnReportView" type="button" style="width:100%;justify-content:center">عرض</button></div>
+      <div><button class="btn" id="btnReportPdf" type="button" style="width:100%;justify-content:center">تنزيل PDF</button></div>
+    </div>
+    <p class="muted">للتقرير اليومي والشهري يُستخدم حقل "من" لتحديد اليوم/الشهر. الأسبوعي: 7 أيام تنتهي بتاريخ "إلى". تُحفظ ملفات PDF في Google Drive داخل مجلد Walif Coffee Accounting/Reports.</p>
+    <div id="reportOut"></div>
+  </div>
+</section>
+
+<!-- ============ Settings ============ -->
+<section id="mgr-settings" class="mgr-tab hidden">
+  <div class="grid cols-2">
+    <form class="card" id="settingsForm">
+      <h2>التقرير اليومي عبر البريد</h2>
+      <div class="field"><label>بريد مستلم التقرير</label><input name="reportEmail" type="email" dir="ltr" placeholder="name@example.com"></div>
+      <div class="field"><label>ساعة الإرسال (توقيت مسقط)</label><select name="reportHour" id="reportHour"></select></div>
+      <div class="field"><label>محتوى التقرير</label>
+        <select name="reportMode"><option value="previous_day">تقرير اليوم السابق كاملًا (الافتراضي)</option><option value="today">تقرير اليوم حتى وقت الإرسال</option></select></div>
+      <div class="field"><label><input type="checkbox" name="reportEnabled" style="width:auto;margin-left:.4rem">تفعيل الإرسال اليومي التلقائي</label></div>
+      <div class="muted" id="triggerState" style="margin-bottom:.6rem"></div>
+      <div class="row">
+        <button class="btn" type="submit">حفظ الإعدادات</button>
+        <button class="btn secondary" type="button" id="btnTestEmail">إرسال تقرير تجريبي الآن</button>
+        <button class="btn ghost" type="button" id="btnRebuildTrigger">إعادة إنشاء Trigger</button>
+      </div>
+    </form>
+    <div>
+      <form class="card" id="passwordForm">
+        <h2>تغيير كلمة المرور</h2>
+        <div class="field"><label>المستخدم</label><select name="username" id="pwUser"></select></div>
+        <div class="field"><label>كلمة المرور الجديدة (6 أحرف على الأقل)</label><input name="newPassword" type="password" minlength="6" required dir="ltr" autocomplete="new-password"></div>
+        <div class="field"><label>تأكيد كلمة المرور</label><input name="confirm" type="password" minlength="6" required dir="ltr" autocomplete="new-password"></div>
+        <button class="btn" type="submit">تغيير</button>
+      </form>
+      <div class="card soft">
+        <h3>المستخدمون</h3>
+        <div class="tbl-wrap" id="usersWrap"></div>
+        <p class="muted" style="margin-top:.5rem">الإصدار <span id="appVersion"></span> · المنطقة الزمنية Asia/Muscat</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Audit ============ -->
+<section id="mgr-audit" class="mgr-tab hidden">
+  <div class="card">
+    <div class="section-title"><h2>سجل العمليات (Audit Log)</h2><button class="btn sm secondary" id="btnLoadAudit" type="button">تحديث</button></div>
+    <div class="tbl-wrap" id="auditWrap"></div>
+  </div>
+  <div class="card">
+    <div class="section-title"><h2>سجل الأخطاء (Error Log)</h2><button class="btn sm secondary" id="btnLoadErrors" type="button">تحديث</button></div>
+    <div class="tbl-wrap" id="errorsWrap"></div>
+  </div>
+</section>
+
+<script>
+/* ===================== Manager (dashboard) logic ===================== */
+var Mgr = (function () {
+  var chartsReady = false, lastDash = null, preset = 'this_month';
+
+  function init() {
+    UI.tabs('#mgrTabs', '.mgr-tab', function (id) {
+      if (id === 'mgr-settings') loadSettings();
+      if (id === 'mgr-audit') { loadAudit(); loadErrors(); }
+      if (id === 'mgr-sales') { loadImports(); }
+    });
+    document.querySelectorAll('#presetChips .chip').forEach(function (c) {
+      c.addEventListener('click', function () {
+        document.querySelectorAll('#presetChips .chip').forEach(function (x) { x.classList.remove('active'); });
+        c.classList.add('active'); preset = c.dataset.preset;
+        if (preset !== 'custom') loadDashboard();
+      });
+    });
+    $('#btnApplyFilters').addEventListener('click', function () { preset = 'custom'; document.querySelectorAll('#presetChips .chip').forEach(function (x) { x.classList.toggle('active', x.dataset.preset === 'custom'); }); loadDashboard(); });
+    $('#btnLoadSales').addEventListener('click', loadSales);
+    $('#btnMgrImports').addEventListener('click', loadImports);
+    $('#btnMgrRecords').addEventListener('click', loadRecords);
+    $('#btnReportView').addEventListener('click', viewReport);
+    $('#btnReportPdf').addEventListener('click', downloadReport);
+    $('#settingsForm').addEventListener('submit', saveSettings);
+    $('#btnTestEmail').addEventListener('click', testEmail);
+    $('#btnRebuildTrigger').addEventListener('click', rebuildTrigger);
+    $('#passwordForm').addEventListener('submit', changePassword);
+    $('#btnLoadAudit').addEventListener('click', loadAudit);
+    $('#btnLoadErrors').addEventListener('click', loadErrors);
+    var hs = $('#reportHour'); for (var h = 0; h < 24; h++) { var o = document.createElement('option'); o.value = h; o.textContent = ('0' + h).slice(-2) + ':00'; hs.appendChild(o); }
+    $('#rFrom').value = App.today; $('#rTo').value = App.today; $('#sFrom').value = App.today.slice(0, 8) + '01'; $('#sTo').value = App.today;
+    $('#mrFrom').value = ''; $('#mrTo').value = '';
+    $('#appVersion').textContent = (App.boot.settings && App.boot.settings.version) || '';
+    if (window.google && google.charts) {
+      google.charts.load('current', { packages: ['corechart'], language: 'ar' });
+      google.charts.setOnLoadCallback(function () { chartsReady = true; if (lastDash) drawCharts(lastDash); });
+    }
+    loadDashboard();
+  }
+
+  function filters() {
+    return { preset: preset, from: $('#fFrom').value, to: $('#fTo').value, store: $('#fStore').value, pos: $('#fPos').value,
+      cashier: $('#fCashier').value, category: $('#fCategory').value, item: $('#fItem').value };
+  }
+
+  function loadDashboard() {
+    App.api('api_getDashboard', filters()).then(function (r) {
+      lastDash = r; render(r);
+    }).catch(UI.err);
+  }
+
+  function fillSelect(id, values) {
+    var s = $(id), cur = s.value; s.innerHTML = '<option value="">الكل</option>';
+    values.forEach(function (v) { var o = document.createElement('option'); o.value = v; o.textContent = v; s.appendChild(o); });
+    s.value = cur;
+  }
+
+  function kpi(label, value, cls, isCount) {
+    return '<div class="kpi ' + (cls || '') + '"><div class="l">' + label + '</div><div class="v num">' + (isCount ? UI.int(value) : UI.money(value)) + '</div></div>';
+  }
+
+  function render(r) {
+    var k = r.kpis;
+    $('#rangeLabel').textContent = 'الفترة: ' + r.range.from + ' → ' + r.range.to;
+    $('#fFrom').value = r.range.from; $('#fTo').value = r.range.to;
+    fillSelect('#fStore', r.options.stores); fillSelect('#fPos', r.options.pos); fillSelect('#fCashier', r.options.cashiers); fillSelect('#fCategory', r.options.categories); fillSelect('#fItem', r.options.items);
+    $('#kpis').innerHTML = [
+      kpi('إجمالي المبيعات', k.grossSales), kpi('إجمالي الخصومات', k.discounts), kpi('صافي المبيعات', k.netSales, 'accent'),
+      kpi('تكلفة البضاعة المباعة', k.cogs), kpi('مجمل الربح', k.grossProfit, k.grossProfit >= 0 ? 'good' : 'bad'),
+      '<div class="kpi"><div class="l">هامش مجمل الربح</div><div class="v num">' + UI.pct(k.grossMargin) + '</div></div>',
+      kpi('مشتريات المخزون', k.inventoryPurchases), kpi('المصروفات العامة', k.expenses), kpi('الرواتب', k.payroll), kpi('الإيجار', k.rent),
+      kpi('صافي الربح التشغيلي', k.operatingProfit, k.operatingProfit >= 0 ? 'good' : 'bad'),
+      kpi('صافي الحركة النقدية', k.netCash, k.netCash >= 0 ? 'good' : 'bad'),
+      kpi('عدد الفواتير', k.receipts, '', true), kpi('متوسط قيمة الفاتورة', k.avgReceipt)
+    ].join('');
+    $('#dashNote').textContent = r.note;
+    $('#demoWarning').classList.toggle('hidden', !r.demoPasswordsActive);
+    $('#reconTable tbody').innerHTML = [
+      ['صافي الربح المحاسبي (التشغيلي)', k.operatingProfit], ['صافي الحركة النقدية', k.netCash], ['الفرق', k.netCash - k.operatingProfit],
+      ['قيمة مشتريات المخزون (فواتير)', k.inventoryPurchases], ['المشتريات المدفوعة فعليًا', k.purchasesPaid], ['تكلفة البضاعة المباعة (Loyverse)', k.cogs],
+      ['مجمل الربح المحسوب', k.grossProfit], ['مجمل الربح حسب Loyverse', k.loyverseGrossProfit], ['فرق المطابقة', k.grossProfitDiff],
+      ['المرتجعات (Refund)', k.refunds]
+    ].map(function (x) { return '<tr><td>' + x[0] + '</td><td class="n">' + UI.money(x[1]) + '</td></tr>'; }).join('');
+
+    var s = r.sales, c = r.costs, cmp = r.comparison;
+    $('#tDaily').innerHTML = UI.table(['التاريخ', 'صافي المبيعات', 'التكلفة', 'مجمل الربح', 'الفواتير'], s.daily.map(function (d) { return [d.date, UI.money(d.net), UI.money(d.cogs), UI.money(d.profit), d.receipts]; }));
+    $('#tHourly').innerHTML = UI.table(['الساعة', 'صافي المبيعات'], s.hourly.filter(function (h) { return h.net; }).map(function (h) { return [('0' + h.hour).slice(-2) + ':00', UI.money(h.net)]; }));
+    $('#tTop').innerHTML = UI.table(['الصنف', 'الكمية', 'صافي المبيعات', 'الربح'], s.topItems.map(function (i) { return [i.item, i.qty, UI.money(i.net), UI.money(i.profit)]; }));
+    $('#tBottom').innerHTML = UI.table(['الصنف', 'الكمية', 'صافي المبيعات'], s.bottomItems.map(function (i) { return [i.item, i.qty, UI.money(i.net)]; }));
+    $('#tCat').innerHTML = UI.table(['التصنيف', 'صافي المبيعات'], s.byCategory.map(function (i) { return [i.category, UI.money(i.net)]; }));
+    $('#tDiscounts').innerHTML = UI.table(['التاريخ', 'الخصومات'], s.discountsByDay.map(function (i) { return [i.date, UI.money(i.discounts)]; })) +
+      (s.discountsByItem.length ? '<h4 class="muted" style="margin:.6rem 0 .3rem">حسب الصنف</h4>' + UI.table(['الصنف', 'الخصومات'], s.discountsByItem.slice(0, 10).map(function (i) { return [i.item, UI.money(i.discounts)]; })) : '');
+    $('#tCashier').innerHTML = UI.table(['الكاشير', 'صافي المبيعات'], s.byCashier.map(function (i) { return [i.cashier, UI.money(i.net)]; }));
+    $('#tStore').innerHTML = UI.table(['الفرع', 'صافي المبيعات'], s.byStore.map(function (i) { return [i.store, UI.money(i.net)]; })) + '<h4 class="muted" style="margin:.6rem 0 .3rem">نقاط البيع</h4>' + UI.table(['POS', 'صافي المبيعات'], s.byPos.map(function (i) { return [i.pos, UI.money(i.net)]; }));
+    $('#tSupplier').innerHTML = UI.table(['المورد', 'الإجمالي'], c.purchasesBySupplier.map(function (i) { return [i.supplier, UI.money(i.total)]; }));
+    $('#tPurCat').innerHTML = UI.table(['التصنيف', 'الإجمالي'], c.purchasesByCategory.map(function (i) { return [i.category, UI.money(i.total)]; }));
+    $('#tExpType').innerHTML = UI.table(['النوع', 'المبلغ'], c.expensesByType.map(function (i) { return [i.type, UI.money(i.amount)]; }));
+    $('#tPayroll').innerHTML = UI.table(['الشهر', 'المبلغ'], c.payrollByMonth.map(function (i) { return [i.month, UI.money(i.amount)]; }));
+    $('#tRent').innerHTML = UI.table(['الفترة', 'المؤجر', 'المبلغ', 'الاستحقاق', 'الدفع', 'الحالة'], c.rentList.map(function (i) { return [i.period, i.landlord, UI.money(i.amount), i.dueDate, i.paymentDate, UI.badge(i.status)]; }));
+    $('#tMonthly').innerHTML = UI.table(['الشهر', 'صافي المبيعات', 'التكلفة', 'المصروفات التشغيلية', 'المشتريات المدفوعة', 'صافي الربح'], cmp.monthly.map(function (m) { return [m.month, UI.money(m.net), UI.money(m.cogs), UI.money(m.opex), UI.money(m.purchasesPaid), UI.money(m.profit)]; }));
+    $('#tCompareDaily').innerHTML = UI.table(['التاريخ', 'صافي المبيعات', 'التكلفة', 'المصروفات', 'الرواتب', 'الإيجار', 'المشتريات المدفوعة', 'صافي الربح'], cmp.daily.map(function (d) { return [d.date, UI.money(d.net), UI.money(d.cogs), UI.money(d.expenses), UI.money(d.payroll), UI.money(d.rent), UI.money(d.purchasesPaid), UI.money(d.profit)]; }));
+    if (chartsReady) drawCharts(r);
+  }
+
+  var CH_OPTS = { backgroundColor: 'transparent', colors: ['#4b2e1e', '#b08968', '#2e7d4f', '#c9a227'], legend: { position: 'bottom' }, chartArea: { width: '85%', height: '70%' }, fontName: 'Segoe UI', hAxis: { textStyle: { fontSize: 11 } } };
+  function opts(extra) { var o = JSON.parse(JSON.stringify(CH_OPTS)); Object.keys(extra || {}).forEach(function (k) { o[k] = extra[k]; }); return o; }
+  function draw(id, Type, data, o) {
+    var el = $(id); if (!el) return;
+    if (!data || data.length < 2) { el.innerHTML = '<p class="muted" style="padding:2rem;text-align:center">لا توجد بيانات كافية</p>'; return; }
+    try { new google.visualization[Type](el).draw(google.visualization.arrayToDataTable(data), o); } catch (e) { el.innerHTML = '<p class="muted">' + UI.esc(e.message) + '</p>'; }
+  }
+  function drawCharts(r) {
+    var s = r.sales, cmp = r.comparison, c = r.costs;
+    draw('#chDaily', 'LineChart', [['التاريخ', 'صافي المبيعات']].concat(s.daily.map(function (d) { return [d.date, d.net]; })), opts({ pointSize: 4 }));
+    draw('#chProfit', 'ColumnChart', [['التاريخ', 'مجمل الربح']].concat(s.daily.map(function (d) { return [d.date, d.profit]; })), opts());
+    var expData = [['النوع', 'المبلغ']].concat(c.expensesByType.map(function (e) { return [e.type, e.amount]; }));
+    if (r.kpis.payroll) expData.push(['الرواتب', r.kpis.payroll]); if (r.kpis.rent) expData.push(['الإيجار', r.kpis.rent]);
+    draw('#chExpenses', 'PieChart', expData, opts({ pieHole: 0.4, colors: ['#4b2e1e', '#6b4632', '#8d6a56', '#b08968', '#c9a98f', '#dccbb8', '#2e7d4f', '#c9a227', '#9a6b00', '#7d6b5f', '#e6dcd0'] }));
+    draw('#chTop', 'BarChart', [['الصنف', 'صافي المبيعات']].concat(s.topItems.map(function (i) { return [i.item, i.net]; })), opts({ legend: { position: 'none' } }));
+    draw('#chCompare', 'ColumnChart', [['التاريخ', 'صافي المبيعات', 'المصروفات التشغيلية']].concat(cmp.daily.map(function (d) { return [d.date, d.net, d.opex]; })), opts());
+    draw('#chTrend', 'LineChart', [['التاريخ', 'صافي الربح']].concat(cmp.daily.map(function (d) { return [d.date, d.profit]; })), opts({ pointSize: 4, colors: ['#2e7d4f'] }));
+  }
+
+  // ---- sales list
+  function loadSales() {
+    App.api('api_listSales', { from: $('#sFrom').value, to: $('#sTo').value, limit: 1000 }).then(function (r) {
+      $('#salesCount').textContent = 'عدد السجلات: ' + r.total + (r.total > r.rows.length ? ' (يُعرض ' + r.rows.length + ')' : '');
+      $('#salesTableWrap').innerHTML = UI.table(['التاريخ', 'الفاتورة', 'النوع', 'التصنيف', 'الصنف', 'الكمية', 'الإجمالي', 'الخصم', 'الصافي', 'التكلفة', 'الربح', 'الكاشير', 'POS', ''],
+        r.rows.map(function (x) { return [x.date, x.receipt, x.type === 'Refund' ? UI.badge('مرتجع', 'err') : 'بيع', x.category, x.item + (x.variant ? ' — ' + x.variant : ''), x.qty, UI.money(x.gross), UI.money(x.discount), UI.money(x.net), UI.money(x.cogs), UI.money(x.profit), x.cashier, x.pos,
+          '<button class="btn sm ghost" data-cancel="sales" data-id="' + UI.esc(x.id) + '" type="button">إلغاء</button>']; }));
+      bindCancel('#salesTableWrap', loadSales);
+    }).catch(UI.err);
+  }
+  function loadImports() {
+    App.api('api_listImports', 50).then(function (r) {
+      $('#mgrImportsWrap').innerHTML = UI.table(['التاريخ', 'الملف', 'بواسطة', 'الفترة', 'مستورد', 'مكرر', 'مرفوض', 'صافي المبيعات', 'الحالة'],
+        r.rows.map(function (x) { return [x['Uploaded At'], x['File Name'], x['Uploaded By'], x['Date From'] + ' → ' + x['Date To'], x['Imported Rows'], x['Duplicate Rows'], x['Rejected Rows'], UI.money(x['Net Sales']), UI.badge(x.Status, x.Status === 'OK' ? 'ok' : 'err')]; }));
+    }).catch(UI.err);
+  }
+
+  // ---- records (cancel / edit)
+  var COLS = {
+    purchases: ['Invoice Date', 'Invoice Number', 'Supplier', 'Category', 'Total', 'Paid Amount', 'Remaining Amount', 'Payment Method', 'Payment Status', 'Is Inventory', 'Attachment URL'],
+    expenses: ['Expense Date', 'Expense Type', 'Description', 'Amount', 'Payment Method', 'Payee', 'Payment Status', 'Attachment URL'],
+    payroll: ['Month', 'Employee', 'Basic Salary', 'Allowance', 'Overtime', 'Deduction', 'Advance', 'Net Salary', 'Payment Date', 'Payment Status'],
+    rent: ['Period', 'Landlord', 'Amount', 'Due Date', 'Payment Date', 'Payment Method', 'Status', 'Attachment URL']
+  };
+  var API = { purchases: 'api_listPurchases', expenses: 'api_listExpenses', payroll: 'api_listPayroll', rent: 'api_listRent' };
+  function loadRecords() {
+    var ent = $('#mrEntity').value;
+    App.api(API[ent], { from: $('#mrFrom').value, to: $('#mrTo').value, status: $('#mrStatus').value, limit: 500 }).then(function (r) {
+      $('#mgrRecordsWrap').innerHTML = UI.recordsTable(ent, COLS[ent], r.rows, true);
+      bindCancel('#mgrRecordsWrap', loadRecords);
+      document.querySelectorAll('#mgrRecordsWrap [data-edit]').forEach(function (b) {
+        b.addEventListener('click', function () { editRecord(ent, b.dataset.id, r.rows.filter(function (x) { return x['Internal ID'] === b.dataset.id; })[0]); });
+      });
+    }).catch(UI.err);
+  }
+  function bindCancel(scope, reload) {
+    document.querySelectorAll(scope + ' [data-cancel]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        UI.prompt('إلغاء السجل', 'سيبقى السجل محفوظًا بحالة "ملغى" ولن يدخل في الحسابات. اكتب سبب الإلغاء:').then(function (reason) {
+          if (reason === null) return;
+          return App.api('api_cancelRecord', b.dataset.cancel, b.dataset.id, reason).then(function () { UI.toast('تم إلغاء السجل', 'ok'); reload(); });
+        }).catch(UI.err);
+      });
+    });
+  }
+  var EDITABLE = {
+    purchases: [['Invoice Number', 'رقم الفاتورة'], ['Invoice Date', 'التاريخ', 'date'], ['Supplier', 'المورد'], ['Category', 'التصنيف', 'purchaseCategories'], ['Description', 'الوصف'], ['Subtotal', 'قبل الضريبة', 'number'], ['Tax', 'الضريبة', 'number'], ['Discount', 'الخصم', 'number'], ['Paid Amount', 'المدفوع', 'number'], ['Payment Method', 'طريقة الدفع', 'paymentMethods'], ['Payment Status', 'حالة الدفع', 'purchasePaymentStatus'], ['Is Inventory', 'مخزون؟', ['نعم', 'لا']]],
+    expenses: [['Expense Date', 'التاريخ', 'date'], ['Expense Type', 'النوع', 'expenseTypes'], ['Description', 'البيان'], ['Amount', 'المبلغ', 'number'], ['Payment Method', 'طريقة الدفع', 'paymentMethods'], ['Payee', 'المستفيد'], ['Payment Status', 'حالة الدفع', 'simplePaymentStatus']],
+    payroll: [['Employee', 'العامل'], ['Month', 'الشهر', 'month'], ['Basic Salary', 'الأساسي', 'number'], ['Allowance', 'البدل', 'number'], ['Overtime', 'الإضافي', 'number'], ['Deduction', 'الخصم', 'number'], ['Advance', 'السلفة', 'number'], ['Payment Date', 'تاريخ الدفع', 'date'], ['Payment Method', 'طريقة الدفع', 'paymentMethods'], ['Payment Status', 'حالة الدفع', 'simplePaymentStatus']],
+    rent: [['Period', 'الفترة', 'month'], ['Landlord', 'المؤجر'], ['Amount', 'المبلغ', 'number'], ['Due Date', 'الاستحقاق', 'date'], ['Payment Date', 'تاريخ الدفع', 'date'], ['Payment Method', 'طريقة الدفع', 'paymentMethods'], ['Status', 'الحالة', 'rentStatus']]
+  };
+  function editRecord(ent, id, row) {
+    if (!row) return;
+    var fields = EDITABLE[ent];
+    var html = '<div class="grid cols-2">' + fields.map(function (f) {
+      var key = f[0], label = f[1], kind = f[2], val = row[key] == null ? '' : String(row[key]);
+      if (kind === 'date' && val.length > 10) val = val.slice(0, 10);
+      var input;
+      if (Array.isArray(kind) || (kind && App.boot.lists[kind])) {
+        var list = Array.isArray(kind) ? kind : App.boot.lists[kind];
+        input = '<select name="' + key + '">' + list.map(function (v) { return '<option' + (v === val ? ' selected' : '') + '>' + UI.esc(v) + '</option>'; }).join('') + '</select>';
+      } else input = '<input name="' + key + '" type="' + (kind === 'number' ? 'number" step="0.001' : kind === 'date' ? 'date' : kind === 'month' ? 'month' : 'text') + '" value="' + UI.esc(val) + '">';
+      return '<div class="field"><label>' + label + '</label>' + input + '</div>';
+    }).join('') + '</div><div class="field"><label>سبب التعديل *</label><input name="__reason" required></div>';
+    UI.form('تعديل السجل', html).then(function (data) {
+      if (!data) return;
+      var reason = data.__reason; delete data.__reason;
+      if (!reason) { UI.toast('سبب التعديل مطلوب', 'err'); return; }
+      return App.api('api_updateRecord', ent, id, data, reason).then(function () { UI.toast('تم حفظ التعديل', 'ok'); loadRecords(); });
+    }).catch(UI.err);
+  }
+
+  // ---- reports
+  function viewReport() {
+    App.api('api_getReportData', $('#rType').value, $('#rFrom').value, $('#rTo').value).then(function (r) {
+      var rep = r.report;
+      var html = '<div class="card soft"><h2>' + UI.esc(rep.title) + '</h2><div class="muted">' + UI.esc(rep.subtitle) + '</div>';
+      if (rep.kpis.length) html += '<div class="kpis" style="margin:.8rem 0">' + rep.kpis.map(function (x) { return '<div class="kpi"><div class="l">' + UI.esc(x[0]) + '</div><div class="v num">' + (typeof x[1] === 'number' && x[0].indexOf('عدد') < 0 && x[0].indexOf('%') < 0 ? UI.money(x[1]) : UI.esc(x[1])) + '</div></div>'; }).join('') + '</div>';
+      rep.sections.forEach(function (s) { html += '<h3>' + UI.esc(s.title) + '</h3><div class="tbl-wrap">' + UI.table(s.headers, s.rows.map(function (row) { return row.map(UI.esc); }), true) + '</div>'; });
+      if (rep.notes.length) html += '<div class="alert warn" style="margin-top:.8rem">' + rep.notes.map(UI.esc).join('<br>') + '</div>';
+      $('#reportOut').innerHTML = html + '</div>';
+    }).catch(UI.err);
+  }
+  function downloadReport() {
+    App.api('api_generateReportPdf', $('#rType').value, $('#rFrom').value, $('#rTo').value).then(function (r) {
+      UI.downloadBase64(r.base64, r.name, 'application/pdf');
+      UI.toast('تم إنشاء ' + r.name, 'ok');
+      $('#reportOut').innerHTML = '<div class="alert ok">تم حفظ التقرير في Google Drive: <a href="' + UI.esc(r.url) + '" target="_blank" rel="noopener">' + UI.esc(r.name) + '</a></div>' + $('#reportOut').innerHTML;
+    }).catch(UI.err);
+  }
+
+  // ---- settings
+  function fillSettings(s) {
+    var f = $('#settingsForm');
+    f.reportEmail.value = s.reportEmail || ''; f.reportHour.value = s.reportHour; f.reportMode.value = s.reportMode; f.reportEnabled.checked = !!s.reportEnabled;
+    $('#triggerState').textContent = s.trigger && s.trigger.exists ? '✅ المشغل اليومي (Trigger) موجود.' : 'ℹ️ لا يوجد مشغل يومي حاليًا. فعّل الإرسال واحفظ الإعدادات أو اضغط إعادة إنشاء Trigger.';
+    $('#demoWarning').classList.toggle('hidden', !s.demoPasswordsActive);
+  }
+  function loadSettings() {
+    App.api('api_getSettings').then(function (r) { fillSettings(r.settings); }).catch(UI.err);
+    App.api('api_listUsers').then(function (r) {
+      $('#usersWrap').innerHTML = UI.table(['المستخدم', 'الدور', 'الاسم', 'آخر دخول', 'كلمة مرور تجريبية؟'], r.users.map(function (u) { return [u.username, u.role === 'manager' ? 'مدير' : 'محاسب', u.displayName, u.lastLogin || '—', u.mustChangePassword ? UI.badge('نعم', 'warn') : UI.badge('لا', 'ok')]; }));
+      var sel = $('#pwUser'); sel.innerHTML = r.users.map(function (u) { return '<option value="' + UI.esc(u.username) + '">' + UI.esc(u.username) + ' (' + UI.esc(u.displayName) + ')</option>'; }).join('');
+    }).catch(UI.err);
+  }
+  function saveSettings(e) {
+    e.preventDefault();
+    var f = $('#settingsForm');
+    App.api('api_saveSettings', { reportEmail: f.reportEmail.value.trim(), reportHour: +f.reportHour.value, reportMode: f.reportMode.value, reportEnabled: f.reportEnabled.checked })
+      .then(function (r) { fillSettings(r.settings); UI.toast('تم حفظ الإعدادات', 'ok'); }).catch(UI.err);
+  }
+  function testEmail() {
+    UI.confirm('إرسال تقرير تجريبي', 'سيتم إنشاء تقرير PDF وإرساله إلى البريد المحفوظ في الإعدادات. متابعة؟').then(function (ok) {
+      if (!ok) return;
+      return App.api('api_sendTestReport', $('#rFrom').value).then(function (r) { UI.toast('تم الإرسال إلى ' + r.sentTo + ' (تقرير ' + r.date + ')', 'ok'); });
+    }).catch(UI.err);
+  }
+  function rebuildTrigger() {
+    App.api('api_rebuildTrigger').then(function (r) { UI.toast('تم إنشاء المشغل اليومي عند الساعة ' + r.hour + ':00', 'ok'); loadSettings(); }).catch(UI.err);
+  }
+  function changePassword(e) {
+    e.preventDefault();
+    var f = $('#passwordForm');
+    if (f.newPassword.value !== f.confirm.value) { UI.toast('كلمتا المرور غير متطابقتين', 'err'); return; }
+    App.api('api_changePassword', f.username.value, f.newPassword.value).then(function (r) {
+      f.reset(); UI.toast('تم تغيير كلمة المرور', 'ok'); $('#demoWarning').classList.toggle('hidden', !r.demoPasswordsActive); loadSettings();
+    }).catch(UI.err);
+  }
+
+  // ---- audit
+  function loadAudit() {
+    App.api('api_getAuditLog', 300).then(function (r) {
+      $('#auditWrap').innerHTML = UI.table(['الوقت', 'المستخدم', 'الدور', 'الإجراء', 'الكيان', 'المعرف', 'التفاصيل', 'النتيجة'], r.rows.map(function (x) { return [x.Timestamp, x.User, x.Role, x.Action, x.Entity, x['Record ID'], UI.esc(x.Details), UI.badge(x.Result, x.Result === 'OK' ? 'ok' : (x.Result === 'FAILED' || x.Result === 'DENIED' ? 'err' : 'warn'))]; }));
+    }).catch(UI.err);
+  }
+  function loadErrors() {
+    App.api('api_getErrorLog', 100).then(function (r) {
+      $('#errorsWrap').innerHTML = r.rows.length ? UI.table(['الوقت', 'الدالة', 'المستخدم', 'الرسالة', 'السجل المرتبط', 'معالج؟'], r.rows.map(function (x) { return [x.Timestamp, x.Function, x.User, UI.esc(x['Error Message']), x['Related Record ID'], x.Resolved]; })) : '<p class="muted">لا توجد أخطاء مسجلة 🎉</p>';
+    }).catch(UI.err);
+  }
+
+  return { init: init };
+})();
+</script>

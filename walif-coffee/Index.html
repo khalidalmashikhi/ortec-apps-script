@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <title><?= appNameAr ?> | <?= appName ?></title>
+  <?!= include('Styles') ?>
+</head>
+<body>
+  <div id="loader"><div class="spinner"></div><div class="muted" id="loaderText">جارٍ التحميل…</div></div>
+  <div id="toasts"></div>
+
+  <!-- Login -->
+  <div id="view-login" class="hidden">
+    <?!= include('Login') ?>
+  </div>
+
+  <!-- App shell -->
+  <div id="view-app" class="hidden">
+    <div class="topbar">
+      <div class="brand">☕ <?= appNameAr ?><small><?= appName ?></small></div>
+      <div class="who">
+        <span id="whoName"></span>
+        <span class="badge" id="whoRole"></span>
+        <button class="btn sm secondary" id="btnLogout" type="button">تسجيل الخروج</button>
+      </div>
+    </div>
+    <div class="container">
+      <div id="demoWarning" class="alert warn hidden">⚠️ يجب تغيير كلمات المرور التجريبية قبل الاستخدام الفعلي.</div>
+      <div id="view-accountant" class="hidden"><?!= include('Accountant') ?></div>
+      <div id="view-manager" class="hidden"><?!= include('Dashboard') ?></div>
+    </div>
+  </div>
+
+  <div id="modalRoot"></div>
+  <script src="https://www.gstatic.com/charts/loader.js"></script>
+  <?!= include('Scripts') ?>
+</body>
+</html>
