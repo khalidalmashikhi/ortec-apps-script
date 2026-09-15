@@ -14,6 +14,12 @@ function setupSystem() {
     report.folders = ensureFolders_();
     ensureDefaultSettings_();
     report.users = ensureDemoUsers_();
+    // Daily e-mail trigger: created here so the report is live right after setup (manager can change it later).
+    var st = getAllSettings_();
+    if (st.REPORT_ENABLED === 'true' && st.REPORT_EMAIL && !triggerInfo_().exists) {
+      report.trigger = rebuildDailyTrigger_(st.REPORT_HOUR);
+      logAudit_({ username: 'system', role: 'system' }, 'CREATE_TRIGGER', 'Settings', '', 'daily trigger at ' + report.trigger + ':00 ' + WC.TZ + ' → ' + st.REPORT_EMAIL, 'OK');
+    }
 
     var already = getSetting_('SETUP_DONE') === 'true';
     report.alreadyDone = already;

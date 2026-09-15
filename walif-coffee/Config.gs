@@ -72,9 +72,9 @@ var WC = {
   RENT_STATUS: ['مدفوع', 'مستحق', 'متأخر'],
 
   DEFAULT_SETTINGS: {
-    REPORT_EMAIL: { value: '', desc: 'بريد مستلم التقرير اليومي' },
+    REPORT_EMAIL: { value: 'khalid98115159@gmail.com', desc: 'بريد مستلم التقرير اليومي' },
     REPORT_HOUR: { value: '8', desc: 'ساعة إرسال التقرير اليومي (0-23) بتوقيت مسقط' },
-    REPORT_ENABLED: { value: 'false', desc: 'تفعيل الإرسال اليومي (true/false)' },
+    REPORT_ENABLED: { value: 'true', desc: 'تفعيل الإرسال اليومي (true/false)' },
     REPORT_MODE: { value: 'previous_day', desc: 'previous_day = تقرير اليوم السابق كاملًا، today = تقرير اليوم حتى وقت الإرسال' },
     DEMO_PASSWORDS_ACTIVE: { value: 'true', desc: 'هل ما زالت كلمات المرور التجريبية مستخدمة' },
     SETUP_DONE: { value: 'false', desc: 'هل تمت التهيئة' },

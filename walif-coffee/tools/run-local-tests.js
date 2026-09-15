@@ -226,11 +226,13 @@ test('PDF generated, named, stored in Reports/YYYY/MM, temp doc trashed', () => 
   assert.ok(S.ss.getSheetByName('Audit_Log').data.some(x => x[3] === 'DOWNLOAD_REPORT'));
 });
 test('test e-mail requires recipient; settings save creates trigger', () => {
+  assert.strictEqual(S.STATE.triggers.length, 1, 'setup created the daily trigger'); assert.strictEqual(S.STATE.triggers[0].hour, 8);
+  ok(G.api_saveSettings(mgr.token, { reportEmail: '', reportHour: 8, reportEnabled: false }));
   let r = G.api_sendTestReport(mgr.token); assert.ok(!r.ok && /بريد/.test(r.error));
   r = G.api_saveSettings(mgr.token, { reportEmail: 'bad', reportHour: 8 }); assert.ok(!r.ok);
   r = G.api_saveSettings(mgr.token, { reportEmail: '', reportHour: 8, reportEnabled: true }); assert.ok(!r.ok);
   r = ok(G.api_saveSettings(mgr.token, { reportEmail: 'owner@example.com', reportHour: 7, reportEnabled: true, reportMode: 'previous_day' }));
-  assert.ok(r.settings.trigger.exists); assert.strictEqual(S.STATE.triggers[0].hour, 7); assert.strictEqual(S.STATE.triggers[0].tz, 'Asia/Muscat');
+  assert.ok(r.settings.trigger.exists); assert.strictEqual(S.STATE.triggers.length, 1); assert.strictEqual(S.STATE.triggers[0].hour, 7); assert.strictEqual(S.STATE.triggers[0].tz, 'Asia/Muscat');
   ok(G.api_rebuildTrigger(mgr.token)); assert.strictEqual(S.STATE.triggers.length, 1, 'old trigger removed');
   r = ok(G.api_sendTestReport(mgr.token, '2026-09-14')); assert.strictEqual(r.sentTo, 'owner@example.com');
   const m = S.STATE.mails[0]; assert.ok(/التقرير اليومي 2026-09-14/.test(m.subject)); assert.ok(m.attachments[0].name.endsWith('.pdf')); assert.ok(/11\.300/.test(m.htmlBody));
