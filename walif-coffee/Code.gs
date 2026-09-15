@@ -1,5 +1,5 @@
 /**
- * Walif Coffee — والِف كوفي
+ * Walif Coffee — وليف كوفي
  * Web entry point + common API wrapper.
  *
  * Files: Config, Utils, Setup, Auth, Audit, SalesImport, Purchases, Expenses, Payroll, Rent, Records,

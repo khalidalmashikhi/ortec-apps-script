@@ -1,10 +1,10 @@
 /**
- * Walif Coffee — والِف كوفي
+ * Walif Coffee — وليف كوفي
  * Central configuration. Every other file reads from WC.
  */
 var WC = {
   APP_NAME: 'Walif Coffee',
-  APP_NAME_AR: 'والِف كوفي',
+  APP_NAME_AR: 'وليف كوفي',
   VERSION: '1.0.0',
   TZ: 'Asia/Muscat',
   CURRENCY: 'OMR',

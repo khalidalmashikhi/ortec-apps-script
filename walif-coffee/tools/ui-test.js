@@ -23,7 +23,7 @@ const OUT = path.join(__dirname, '..', 'tests', 'screenshots'); fs.mkdirSync(OUT
     page.on('pageerror', e => errors.push('pageerror: ' + e.message));
     page.on('console', m => { if (m.type() === 'error' && !/gstatic|charts|net::ERR|Failed to load resource/.test(m.text())) errors.push('console: ' + m.text()); });
     // block Google Charts network (offline sandbox) so the page uses its fallback text
-    await page.route(/gstatic\.com/, r => r.abort());
+    await page.route(/gstatic\.com|fonts\.googleapis\.com/, r => r.abort());
     return page;
   };
   const toastText = async (page) => (await page.locator('.toast').allTextContents()).join(' | ');
