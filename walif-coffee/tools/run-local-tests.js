@@ -40,8 +40,8 @@ test('Users sheet holds no password / hash', () => {
   assert.ok(!cells.some(c => c === '1234' || c === '2026' || /^[0-9a-f]{64}$/i.test(c)), 'Users sheet leaks secrets: ' + cells.join(' '));
   assert.ok(S.STATE.props.WC_USER_admin && JSON.parse(S.STATE.props.WC_USER_admin).salt, 'hash+salt in properties');
 });
-test('setupSystem is idempotent (demo data created once)', () => {
-  assert.strictEqual(S.ss.getSheetByName('Purchases').getLastRow(), 2, 'one demo purchase');
+test('setupSystem is idempotent and seeds no demo data', () => {
+  assert.strictEqual(S.ss.getSheetByName('Purchases').getLastRow(), 1, 'books start empty');
   const before = S.ss.getSheetByName('Purchases').getLastRow();
   const r2 = G.setupSystem();
   assert.ok(r2.alreadyDone); assert.strictEqual(r2.sheets.length, 0); assert.strictEqual(r2.users.length, 0);
@@ -164,13 +164,12 @@ test('dashboard numbers for 2026-09-13..15', () => {
   assert.strictEqual(k.grossProfit, G.round3_(k.netSales - k.cogs));
   assert.strictEqual(k.grossProfitDiff, 0, 'matches Loyverse gross profit');
   assert.strictEqual(k.receipts, 16); assert.strictEqual(k.avgReceipt, G.round3_(k.netSales / 16));
-  // costs: demo rows are dated today (2026-09-15) and included; demo purchase 52.5 paid, demo expense 15, demo payroll 220, demo rent 150
-  assert.strictEqual(k.inventoryPurchases, 42 + 52.5); assert.strictEqual(k.nonInventoryPurchases, 100);
-  assert.strictEqual(k.purchasesPaid, 42 + 30 + 52.5);
-  assert.strictEqual(k.expenses, 12.5 + 7 + 15); assert.strictEqual(k.expensesPaid, 12.5 + 15);
-  assert.strictEqual(k.payroll, 320 + 220); assert.strictEqual(k.payrollPaid, 540);
-  assert.strictEqual(k.rent, 350); assert.strictEqual(k.rentPaid, 350);
-  assert.strictEqual(k.operatingExpenses, G.round3_(34.5 + 540 + 350));
+  assert.strictEqual(k.inventoryPurchases, 42); assert.strictEqual(k.nonInventoryPurchases, 100);
+  assert.strictEqual(k.purchasesPaid, 42 + 30);
+  assert.strictEqual(k.expenses, 12.5 + 7); assert.strictEqual(k.expensesPaid, 12.5);
+  assert.strictEqual(k.payroll, 320); assert.strictEqual(k.payrollPaid, 320);
+  assert.strictEqual(k.rent, 200); assert.strictEqual(k.rentPaid, 200);
+  assert.strictEqual(k.operatingExpenses, G.round3_(19.5 + 320 + 200));
   // P&L must NOT deduct purchases:
   assert.strictEqual(k.operatingProfit, G.round3_(k.grossProfit - k.operatingExpenses));
   // cash must deduct paid purchases:
@@ -183,8 +182,8 @@ test('breakdowns present', () => {
   assert.strictEqual(dash.sales.topItems[0].item, 'Iced Latte');
   assert.ok(dash.sales.hourly.length === 24 && dash.sales.hourly[8].net > 0);
   assert.ok(dash.sales.byCashier.length === 3 /* Ahmed, Salim, evil */); assert.ok(dash.sales.byPos.length === 2);
-  assert.ok(dash.costs.purchasesBySupplier.length === 3); assert.ok(dash.costs.expensesByType.length === 2);
-  assert.strictEqual(dash.costs.payrollByMonth[0].amount, 540); assert.strictEqual(dash.costs.rentList.length, 2);
+  assert.ok(dash.costs.purchasesBySupplier.length === 2); assert.ok(dash.costs.expensesByType.length === 2);
+  assert.strictEqual(dash.costs.payrollByMonth[0].amount, 320); assert.strictEqual(dash.costs.rentList.length, 1);
   assert.strictEqual(dash.comparison.monthly.length, 1); assert.ok(dash.comparison.daily.length >= 3);
   assert.ok(dash.options.items.includes('Espresso'));
 });
@@ -196,7 +195,7 @@ test('filters: cashier + preset today', () => {
 test('cancelled record leaves the numbers', () => {
   ok(G.api_cancelRecord(mgr.token, 'expenses', expenseId, 'خطأ في الإدخال'));
   const r = ok(G.api_getDashboard(mgr.token, { preset: 'custom', from: '2026-09-13', to: TODAY }));
-  assert.strictEqual(r.kpis.expenses, 7 + 15);
+  assert.strictEqual(r.kpis.expenses, 7);
   const again = G.api_cancelRecord(mgr.token, 'expenses', expenseId, 'x'); assert.ok(!again.ok);
   const list = ok(G.api_listExpenses(mgr.token, { status: 'CANCELLED' })); assert.strictEqual(list.rows.length, 1); assert.strictEqual(list.rows[0]['Cancel Reason'], 'خطأ في الإدخال');
 });
@@ -297,12 +296,16 @@ test('deployWebApp creates a deployment, then updates the same one', () => {
   assert.strictEqual(S.STATE.version, 3); assert.ok(/Web App/.test(G.showLinks()));
 });
 
-console.log('\n23. remove demo data (keeps real CSV data)');
-test('removeDemoData deletes only demo rows', () => {
-  const n = G.removeDemoData(); assert.strictEqual(n, 4);
-  assert.strictEqual(S.ss.getSheetByName('Sales_Raw').getLastRow(), 20);
-  const d = ok(G.api_getDashboard(mgr.token, { preset: 'custom', from: '2026-09-13', to: TODAY }));
-  assert.strictEqual(d.kpis.inventoryPurchases, 42); assert.strictEqual(d.kpis.rent, 200); assert.strictEqual(d.kpis.payroll, 330);
+console.log('\n23. fresh start: reset financial data (manager only, typed confirmation)');
+test('resetFinancialData clears the books but keeps users/settings/audit', () => {
+  assert.ok(!G.api_resetFinancialData(acc.token, 'RESET').ok, 'accountant forbidden');
+  assert.ok(!G.api_resetFinancialData(mgr.token, 'yes').ok, 'needs RESET');
+  const r = ok(G.api_resetFinancialData(mgr.token, 'RESET')); assert.ok(r.removed.Sales_Raw >= 19);
+  for (const n of ['Sales_Raw', 'Sales_Imports', 'Purchases', 'Expenses', 'Payroll', 'Rent']) assert.strictEqual(S.ss.getSheetByName(n).getLastRow(), 1, n + ' emptied');
+  assert.ok(S.ss.getSheetByName('Users').getLastRow() > 1); assert.ok(S.ss.getSheetByName('Audit_Log').data.some(x => x[3] === 'RESET_DATA'));
+  const d = ok(G.api_getDashboard(mgr.token, { preset: 'last30' })); assert.strictEqual(d.kpis.netSales, 0);
+  // re-import works after a reset (keys were cleared too)
+  assert.strictEqual(ok(G.api_importSalesCsv(mgr.token, csv, 'again.csv')).imported, 18);
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

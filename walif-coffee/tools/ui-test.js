@@ -31,6 +31,14 @@ const OUT = path.join(__dirname, '..', 'tests', 'screenshots'); fs.mkdirSync(OUT
   console.log('\nAccountant flow (mobile 390px)');
   let page = await newPage({ width: 390, height: 844 });
   await step('login page renders', async () => { await page.goto(BASE); await page.waitForSelector('#loginForm', { state: 'visible' }); await page.screenshot({ path: OUT + '/01-login-mobile.png' }); });
+  await step('language toggle: English → LTR, then back to Arabic', async () => {
+    await page.click('#btnLangLogin'); await page.waitForTimeout(100);
+    if (await page.evaluate(() => document.documentElement.dir) !== 'ltr') throw new Error('dir not ltr');
+    if ((await page.locator('#loginBtn').innerText()).trim() !== 'Sign in') throw new Error('login button not translated: ' + await page.locator('#loginBtn').innerText());
+    await page.screenshot({ path: OUT + '/00-login-english.png' });
+    await page.click('#btnLangLogin'); await page.waitForTimeout(100);
+    if (await page.evaluate(() => document.documentElement.dir) !== 'rtl') throw new Error('dir not rtl');
+  });
   await step('wrong password shows error', async () => { await page.fill('#loginUser', 'ac'); await page.fill('#loginPass', 'x'); await page.click('#loginBtn'); await page.waitForSelector('#loginError:not(.hidden)'); });
   await step('ac/1234 logs in, sees accountant view only', async () => {
     await page.fill('#loginPass', '1234'); await page.click('#loginBtn');
@@ -88,6 +96,18 @@ const OUT = path.join(__dirname, '..', 'tests', 'screenshots'); fs.mkdirSync(OUT
     const t = await page.locator('#recordsTableWrap').innerText(); if (!t.includes('UI-1') || !t.includes('📎')) throw new Error(t);
     await page.screenshot({ path: OUT + '/04-records-mobile.png', fullPage: true });
   });
+  await step('English mode inside the app translates tabs, forms and stored values', async () => {
+    await page.click('#btnLangApp'); await page.waitForTimeout(150);
+    const tabs = await page.locator('#accTabs').innerText(); if (!/Sales upload/.test(tabs) || /رفع/.test(tabs)) throw new Error('tabs: ' + tabs);
+    await page.click('#accTabs button[data-tab=acc-purchase]');
+    const opts = await page.locator('#purchaseForm [name=paymentMethod]').innerText(); if (!/Cash/.test(opts)) throw new Error('list values not translated: ' + opts);
+    if ((await page.locator('#purchaseForm [name=paymentMethod]').inputValue()) !== 'نقد') throw new Error('stored value must stay Arabic');
+    await page.click('#accTabs button[data-tab=acc-records]');
+    await page.waitForFunction(() => /Supplier/.test(document.querySelector('#recordsTableWrap').innerText), null, { timeout: 10000 });
+    const tbl = await page.locator('#recordsTableWrap').innerText(); if (!/Paid/.test(tbl)) throw new Error('records not translated: ' + tbl.slice(0, 120));
+    await page.screenshot({ path: OUT + '/04b-records-english.png', fullPage: true });
+    await page.click('#btnLangApp'); await page.waitForTimeout(150);
+  });
   await step('logout returns to login', async () => { await page.click('#btnLogout'); await page.waitForSelector('#loginForm', { state: 'visible' }); });
 
   console.log('\nManager flow (desktop 1280px)');
@@ -136,14 +156,22 @@ const OUT = path.join(__dirname, '..', 'tests', 'screenshots'); fs.mkdirSync(OUT
     await page.selectOption('#pwUser', 'ac'); await page.fill('#passwordForm [name=newPassword]', 'secret99'); await page.fill('#passwordForm [name=confirm]', 'secret99'); await page.click('#passwordForm button[type=submit]'); await page.waitForSelector('.toast.ok');
     await page.screenshot({ path: OUT + '/07-settings.png', fullPage: true });
   });
+  await step('fresh start: reset financial data with typed confirmation', async () => {
+    await page.click('#mgrTabs button[data-tab=mgr-settings]'); await page.waitForSelector('#btnResetData');
+    await page.click('#btnResetData'); await page.fill('#mIn', 'nope'); await page.click('#mOk'); await page.waitForSelector('.toast.err');
+    await page.click('#btnResetData'); await page.fill('#mIn', 'RESET'); await page.click('#mOk'); await page.waitForSelector('.toast.ok');
+    await page.click('#mgrTabs button[data-tab=mgr-dash]'); await page.waitForTimeout(400);
+    const k = await page.locator('#kpis').innerText(); if (!/0\.000/.test(k)) throw new Error('dashboard not empty after reset');
+  });
   await step('audit log shows actions', async () => {
     await page.click('#mgrTabs button[data-tab=mgr-audit]'); await page.waitForSelector('#auditWrap table');
-    const t = await page.locator('#auditWrap').innerText(); for (const a of ['IMPORT_SALES', 'ADD_PURCHASE', 'CANCEL_RECORD', 'SEND_EMAIL', 'CHANGE_PASSWORD']) if (!t.includes(a)) throw new Error('missing ' + a);
+    const t = await page.locator('#auditWrap').innerText(); for (const a of ['IMPORT_SALES', 'ADD_PURCHASE', 'CANCEL_RECORD', 'SEND_EMAIL', 'CHANGE_PASSWORD', 'RESET_DATA']) if (!t.includes(a)) throw new Error('missing ' + a);
   });
   await step('mobile dashboard renders without horizontal overflow', async () => {
     const m = await newPage({ width: 390, height: 844 }); await m.goto(BASE); await m.fill('#loginUser', 'admin'); await m.fill('#loginPass', '2026'); await m.click('#loginBtn');
-    await m.waitForSelector('#kpis .kpi'); const sw = await m.evaluate(() => document.documentElement.scrollWidth); if (sw > 400) { const wide = await m.evaluate(() => Array.from(document.querySelectorAll('body *')).filter(e => e.getBoundingClientRect().right > 395).slice(0, 8).map(e => e.tagName + '#' + e.id + '.' + e.className)); throw new Error('page overflows: ' + sw + ' ' + JSON.stringify(wide)); }
-    await m.screenshot({ path: OUT + '/08-dashboard-mobile.png', fullPage: true });
+    await m.waitForSelector('#kpis .kpi'); await m.screenshot({ path: OUT + '/08-dashboard-mobile.png', fullPage: false });
+    if (!(await m.locator('#mgrTabs').evaluate(e => getComputedStyle(e).position === 'fixed'))) throw new Error('bottom tab bar not fixed on phone');
+    const sw = await m.evaluate(() => document.documentElement.scrollWidth); if (sw > 400) { const wide = await m.evaluate(() => Array.from(document.querySelectorAll('body *')).filter(e => e.getBoundingClientRect().right > 395).slice(0, 8).map(e => e.tagName + '#' + e.id + '.' + e.className)); throw new Error('page overflows: ' + sw + ' ' + JSON.stringify(wide)); }
   });
 
   await browser.close(); srv.kill();

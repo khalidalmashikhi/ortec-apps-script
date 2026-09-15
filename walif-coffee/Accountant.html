@@ -1,133 +1,133 @@
 <div class="tabs" id="accTabs">
-  <button data-tab="acc-sales" class="active" type="button">📥 رفع المبيعات</button>
-  <button data-tab="acc-purchase" type="button">🧾 فاتورة مشتريات</button>
-  <button data-tab="acc-expense" type="button">💸 مصروف</button>
-  <button data-tab="acc-payroll" type="button">👷 راتب</button>
-  <button data-tab="acc-rent" type="button">🏠 إيجار</button>
-  <button data-tab="acc-records" type="button">📋 سجلاتي</button>
+  <button data-tab="acc-sales" class="active" type="button"><span class="ic">📥</span><span data-i18n>رفع المبيعات</span></button>
+  <button data-tab="acc-purchase" type="button"><span class="ic">🧾</span><span data-i18n>فاتورة مشتريات</span></button>
+  <button data-tab="acc-expense" type="button"><span class="ic">💸</span><span data-i18n>مصروف</span></button>
+  <button data-tab="acc-payroll" type="button"><span class="ic">👷</span><span data-i18n>راتب</span></button>
+  <button data-tab="acc-rent" type="button"><span class="ic">🏠</span><span data-i18n>إيجار</span></button>
+  <button data-tab="acc-records" type="button"><span class="ic">📋</span><span data-i18n>سجلاتي</span></button>
 </div>
 
 <!-- ============ Sales upload ============ -->
 <section id="acc-sales" class="acc-tab">
   <div class="card">
-    <h2>رفع ملف مبيعات Loyverse (CSV)</h2>
-    <p class="muted">اختر ملف CSV المصدَّر من Loyverse، ثم افحصه لعرض المعاينة قبل الاستيراد. الأعمدة تُطابق بالاسم، ولا يُستورد أي سجل مكرر.</p>
+    <h2 data-i18n>رفع ملف مبيعات Loyverse (CSV)</h2>
+    <p class="muted" data-i18n>اختر ملف CSV المصدَّر من Loyverse، ثم افحصه لعرض المعاينة قبل الاستيراد. الأعمدة تُطابق بالاسم، ولا يُستورد أي سجل مكرر.</p>
     <div class="row">
       <input type="file" id="csvFile" accept=".csv,text/csv" style="max-width:360px">
-      <button class="btn" id="btnPreviewCsv" type="button">فحص الملف</button>
+      <button class="btn" id="btnPreviewCsv" type="button" data-i18n>فحص الملف</button>
     </div>
     <div id="csvPreview" class="hidden" style="margin-top:1rem">
-      <h3>المعاينة</h3>
+      <h3 data-i18n>المعاينة</h3>
       <div class="preview-grid" id="csvPreviewGrid"></div>
       <div id="csvRejected" class="alert warn hidden" style="margin-top:.7rem"></div>
       <div class="row" style="margin-top:.8rem">
-        <button class="btn" id="btnImportCsv" type="button">اعتماد واستيراد</button>
-        <button class="btn ghost" id="btnCancelCsv" type="button">إلغاء</button>
+        <button class="btn" id="btnImportCsv" type="button" data-i18n>اعتماد واستيراد</button>
+        <button class="btn ghost" id="btnCancelCsv" type="button" data-i18n>إلغاء</button>
       </div>
     </div>
     <div id="csvResult" class="hidden" style="margin-top:1rem"></div>
   </div>
   <div class="card soft">
-    <div class="section-title"><h3>آخر عمليات الاستيراد</h3><button class="btn sm secondary" id="btnRefreshImports" type="button">تحديث</button></div>
-    <div class="tbl-wrap"><table id="importsTable"><thead><tr><th>التاريخ</th><th>الملف</th><th>الفترة</th><th class="n">مستورد</th><th class="n">مكرر</th><th class="n">مرفوض</th><th class="n">صافي المبيعات</th><th>الحالة</th></tr></thead><tbody></tbody></table></div>
+    <div class="section-title"><h3 data-i18n>آخر عمليات الاستيراد</h3><button class="btn sm secondary" id="btnRefreshImports" type="button" data-i18n>تحديث</button></div>
+    <div class="tbl-wrap" id="importsWrap"></div>
   </div>
 </section>
 
 <!-- ============ Purchase ============ -->
 <section id="acc-purchase" class="acc-tab hidden">
   <form class="card" id="purchaseForm">
-    <h2>إضافة فاتورة مشتريات</h2>
+    <h2 data-i18n>إضافة فاتورة مشتريات</h2>
     <div class="grid cols-3">
-      <div class="field"><label>رقم الفاتورة *</label><input name="invoiceNumber" required maxlength="60"></div>
-      <div class="field"><label>تاريخ الفاتورة *</label><input name="invoiceDate" type="date" required></div>
-      <div class="field"><label>اسم المورد *</label><input name="supplier" required maxlength="120"></div>
-      <div class="field"><label>تصنيف المشتريات *</label><select name="category" data-list="purchaseCategories" required></select></div>
-      <div class="field"><label>هل هي مشتريات مخزون؟</label><select name="isInventory"><option value="true">نعم</option><option value="false">لا</option></select></div>
-      <div class="field"><label>طريقة الدفع *</label><select name="paymentMethod" data-list="paymentMethods" required></select></div>
-      <div class="field"><label>المبلغ قبل الضريبة *</label><input name="subtotal" type="number" step="0.001" min="0" required value="0"></div>
-      <div class="field"><label>الضريبة</label><input name="tax" type="number" step="0.001" min="0" value="0"></div>
-      <div class="field"><label>الخصم</label><input name="discount" type="number" step="0.001" min="0" value="0"></div>
-      <div class="field"><label>المبلغ المدفوع *</label><input name="paidAmount" type="number" step="0.001" min="0" required value="0"></div>
-      <div class="field"><label>حالة الدفع</label><select name="paymentStatus" data-list="purchasePaymentStatus"></select></div>
-      <div class="field"><label>مرفق الفاتورة (PDF/JPG/PNG)</label><input name="attachment" type="file" accept=".pdf,.jpg,.jpeg,.png"></div>
+      <div class="field"><label data-i18n>رقم الفاتورة *</label><input name="invoiceNumber" required maxlength="60"></div>
+      <div class="field"><label data-i18n>تاريخ الفاتورة *</label><input name="invoiceDate" type="date" required></div>
+      <div class="field"><label data-i18n>اسم المورد *</label><input name="supplier" required maxlength="120"></div>
+      <div class="field"><label data-i18n>تصنيف المشتريات *</label><select name="category" data-list="purchaseCategories" required></select></div>
+      <div class="field"><label data-i18n>هل هي مشتريات مخزون؟</label><select name="isInventory"><option value="true" data-i18n>نعم</option><option value="false" data-i18n>لا</option></select></div>
+      <div class="field"><label data-i18n>طريقة الدفع *</label><select name="paymentMethod" data-list="paymentMethods" required></select></div>
+      <div class="field"><label data-i18n>المبلغ قبل الضريبة *</label><input name="subtotal" type="number" step="0.001" min="0" required value="0"></div>
+      <div class="field"><label data-i18n>الضريبة</label><input name="tax" type="number" step="0.001" min="0" value="0"></div>
+      <div class="field"><label data-i18n>الخصم</label><input name="discount" type="number" step="0.001" min="0" value="0"></div>
+      <div class="field"><label data-i18n>المبلغ المدفوع *</label><input name="paidAmount" type="number" step="0.001" min="0" required value="0"></div>
+      <div class="field"><label data-i18n>حالة الدفع</label><select name="paymentStatus" data-list="purchasePaymentStatus"></select></div>
+      <div class="field"><label data-i18n>مرفق الفاتورة (PDF/JPG/PNG)</label><input name="attachment" type="file" accept=".pdf,.jpg,.jpeg,.png"></div>
     </div>
     <div class="grid cols-2" style="margin-bottom:.7rem">
-      <div class="total-box"><span>إجمالي الفاتورة</span><span class="num" id="purTotal">0.000</span></div>
-      <div class="total-box"><span>المبلغ المتبقي</span><span class="num" id="purRemaining">0.000</span></div>
+      <div class="total-box"><span data-i18n>إجمالي الفاتورة</span><span class="num" id="purTotal">0.000</span></div>
+      <div class="total-box"><span data-i18n>المبلغ المتبقي</span><span class="num" id="purRemaining">0.000</span></div>
     </div>
-    <div class="field"><label>وصف المشتريات</label><input name="description" maxlength="500"></div>
-    <div class="field"><label>ملاحظات</label><textarea name="notes" maxlength="1000"></textarea></div>
-    <p class="muted">راجع المبلغ والتاريخ والمورد قبل الاعتماد. لا يُستخرج محتوى الفاتورة آليًا.</p>
-    <button class="btn" type="submit">حفظ الفاتورة</button>
+    <div class="field"><label data-i18n>وصف المشتريات</label><input name="description" maxlength="500"></div>
+    <div class="field"><label data-i18n>ملاحظات</label><textarea name="notes" maxlength="1000"></textarea></div>
+    <p class="muted" data-i18n>راجع المبلغ والتاريخ والمورد قبل الاعتماد. لا يُستخرج محتوى الفاتورة آليًا.</p>
+    <button class="btn" type="submit" data-i18n>حفظ الفاتورة</button>
   </form>
 </section>
 
 <!-- ============ Expense ============ -->
 <section id="acc-expense" class="acc-tab hidden">
   <form class="card" id="expenseForm">
-    <h2>إضافة مصروف</h2>
+    <h2 data-i18n>إضافة مصروف</h2>
     <div class="grid cols-3">
-      <div class="field"><label>التاريخ *</label><input name="expenseDate" type="date" required></div>
-      <div class="field"><label>نوع المصروف *</label><select name="expenseType" data-list="expenseTypes" required></select></div>
-      <div class="field"><label>المبلغ *</label><input name="amount" type="number" step="0.001" min="0.001" required></div>
-      <div class="field"><label>طريقة الدفع *</label><select name="paymentMethod" data-list="paymentMethods" required></select></div>
-      <div class="field"><label>حالة الدفع *</label><select name="paymentStatus" data-list="simplePaymentStatus" required></select></div>
-      <div class="field"><label>اسم المستفيد</label><input name="payee" maxlength="120"></div>
-      <div class="field"><label>مرفق (اختياري)</label><input name="attachment" type="file" accept=".pdf,.jpg,.jpeg,.png"></div>
+      <div class="field"><label data-i18n>التاريخ *</label><input name="expenseDate" type="date" required></div>
+      <div class="field"><label data-i18n>نوع المصروف *</label><select name="expenseType" data-list="expenseTypes" required></select></div>
+      <div class="field"><label data-i18n>المبلغ *</label><input name="amount" type="number" step="0.001" min="0.001" required></div>
+      <div class="field"><label data-i18n>طريقة الدفع *</label><select name="paymentMethod" data-list="paymentMethods" required></select></div>
+      <div class="field"><label data-i18n>حالة الدفع *</label><select name="paymentStatus" data-list="simplePaymentStatus" required></select></div>
+      <div class="field"><label data-i18n>اسم المستفيد</label><input name="payee" maxlength="120"></div>
+      <div class="field"><label data-i18n>مرفق (اختياري)</label><input name="attachment" type="file" accept=".pdf,.jpg,.jpeg,.png"></div>
     </div>
-    <div class="field"><label>البيان *</label><input name="description" required maxlength="500"></div>
-    <div class="field"><label>ملاحظات</label><textarea name="notes" maxlength="1000"></textarea></div>
-    <button class="btn" type="submit">حفظ المصروف</button>
+    <div class="field"><label data-i18n>البيان *</label><input name="description" required maxlength="500"></div>
+    <div class="field"><label data-i18n>ملاحظات</label><textarea name="notes" maxlength="1000"></textarea></div>
+    <button class="btn" type="submit" data-i18n>حفظ المصروف</button>
   </form>
 </section>
 
 <!-- ============ Payroll ============ -->
 <section id="acc-payroll" class="acc-tab hidden">
   <form class="card" id="payrollForm">
-    <h2>إضافة راتب</h2>
+    <h2 data-i18n>إضافة راتب</h2>
     <div class="grid cols-3">
-      <div class="field"><label>اسم العامل *</label><input name="employee" required maxlength="120"></div>
-      <div class="field"><label>الشهر *</label><input name="month" type="month" required></div>
-      <div class="field"><label>الراتب الأساسي *</label><input name="basicSalary" type="number" step="0.001" min="0" required value="0"></div>
-      <div class="field"><label>بدل</label><input name="allowance" type="number" step="0.001" min="0" value="0"></div>
-      <div class="field"><label>إضافي</label><input name="overtime" type="number" step="0.001" min="0" value="0"></div>
-      <div class="field"><label>خصم</label><input name="deduction" type="number" step="0.001" min="0" value="0"></div>
-      <div class="field"><label>سلفة</label><input name="advance" type="number" step="0.001" min="0" value="0"></div>
-      <div class="field"><label>حالة الدفع *</label><select name="paymentStatus" data-list="simplePaymentStatus" required></select></div>
-      <div class="field"><label>تاريخ الدفع</label><input name="paymentDate" type="date"></div>
-      <div class="field"><label>طريقة الدفع</label><select name="paymentMethod" data-list="paymentMethods"></select></div>
+      <div class="field"><label data-i18n>اسم العامل *</label><input name="employee" required maxlength="120"></div>
+      <div class="field"><label data-i18n>الشهر *</label><input name="month" type="month" required></div>
+      <div class="field"><label data-i18n>الراتب الأساسي *</label><input name="basicSalary" type="number" step="0.001" min="0" required value="0"></div>
+      <div class="field"><label data-i18n>بدل</label><input name="allowance" type="number" step="0.001" min="0" value="0"></div>
+      <div class="field"><label data-i18n>إضافي</label><input name="overtime" type="number" step="0.001" min="0" value="0"></div>
+      <div class="field"><label data-i18n>خصم</label><input name="deduction" type="number" step="0.001" min="0" value="0"></div>
+      <div class="field"><label data-i18n>سلفة</label><input name="advance" type="number" step="0.001" min="0" value="0"></div>
+      <div class="field"><label data-i18n>حالة الدفع *</label><select name="paymentStatus" data-list="simplePaymentStatus" required></select></div>
+      <div class="field"><label data-i18n>تاريخ الدفع</label><input name="paymentDate" type="date"></div>
+      <div class="field"><label data-i18n>طريقة الدفع</label><select name="paymentMethod" data-list="paymentMethods"></select></div>
     </div>
-    <div class="total-box" style="margin-bottom:.7rem"><span>صافي الراتب</span><span class="num" id="payNet">0.000</span></div>
-    <div class="field"><label>ملاحظات</label><textarea name="notes" maxlength="1000"></textarea></div>
-    <button class="btn" type="submit">حفظ الراتب</button>
+    <div class="total-box" style="margin-bottom:.7rem"><span data-i18n>صافي الراتب</span><span class="num" id="payNet">0.000</span></div>
+    <div class="field"><label data-i18n>ملاحظات</label><textarea name="notes" maxlength="1000"></textarea></div>
+    <button class="btn" type="submit" data-i18n>حفظ الراتب</button>
   </form>
 </section>
 
 <!-- ============ Rent ============ -->
 <section id="acc-rent" class="acc-tab hidden">
   <form class="card" id="rentForm">
-    <h2>إضافة إيجار</h2>
+    <h2 data-i18n>إضافة إيجار</h2>
     <div class="grid cols-3">
-      <div class="field"><label>الشهر / الفترة *</label><input name="period" type="month" required></div>
-      <div class="field"><label>اسم المؤجر *</label><input name="landlord" required maxlength="120"></div>
-      <div class="field"><label>قيمة الإيجار *</label><input name="amount" type="number" step="0.001" min="0.001" required></div>
-      <div class="field"><label>تاريخ الاستحقاق *</label><input name="dueDate" type="date" required></div>
-      <div class="field"><label>الحالة *</label><select name="status" data-list="rentStatus" required></select></div>
-      <div class="field"><label>تاريخ الدفع</label><input name="paymentDate" type="date"></div>
-      <div class="field"><label>طريقة الدفع</label><select name="paymentMethod" data-list="paymentMethods"></select></div>
-      <div class="field"><label>مرفق (اختياري)</label><input name="attachment" type="file" accept=".pdf,.jpg,.jpeg,.png"></div>
+      <div class="field"><label data-i18n>الشهر / الفترة *</label><input name="period" type="month" required></div>
+      <div class="field"><label data-i18n>اسم المؤجر *</label><input name="landlord" required maxlength="120"></div>
+      <div class="field"><label data-i18n>قيمة الإيجار *</label><input name="amount" type="number" step="0.001" min="0.001" required></div>
+      <div class="field"><label data-i18n>تاريخ الاستحقاق *</label><input name="dueDate" type="date" required></div>
+      <div class="field"><label data-i18n>الحالة *</label><select name="status" data-list="rentStatus" required></select></div>
+      <div class="field"><label data-i18n>تاريخ الدفع</label><input name="paymentDate" type="date"></div>
+      <div class="field"><label data-i18n>طريقة الدفع</label><select name="paymentMethod" data-list="paymentMethods"></select></div>
+      <div class="field"><label data-i18n>مرفق (اختياري)</label><input name="attachment" type="file" accept=".pdf,.jpg,.jpeg,.png"></div>
     </div>
-    <div class="field"><label>ملاحظات</label><textarea name="notes" maxlength="1000"></textarea></div>
-    <button class="btn" type="submit">حفظ الإيجار</button>
+    <div class="field"><label data-i18n>ملاحظات</label><textarea name="notes" maxlength="1000"></textarea></div>
+    <button class="btn" type="submit" data-i18n>حفظ الإيجار</button>
   </form>
 </section>
 
 <!-- ============ My records ============ -->
 <section id="acc-records" class="acc-tab hidden">
   <div class="card">
-    <div class="section-title"><h2>السجلات التي أدخلتها</h2>
-      <div class="row"><select id="recEntity" style="width:auto"><option value="purchases">المشتريات</option><option value="expenses">المصروفات</option><option value="payroll">الرواتب</option><option value="rent">الإيجارات</option></select>
-      <button class="btn sm secondary" id="btnLoadRecords" type="button">عرض</button></div>
+    <div class="section-title"><h2 data-i18n>السجلات التي أدخلتها</h2>
+      <div class="row"><select id="recEntity" style="width:auto"><option value="purchases" data-i18n>المشتريات</option><option value="expenses" data-i18n>المصروفات</option><option value="payroll" data-i18n>الرواتب</option><option value="rent" data-i18n>الإيجارات</option></select>
+      <button class="btn sm secondary" id="btnLoadRecords" type="button" data-i18n>عرض</button></div>
     </div>
     <div class="tbl-wrap" id="recordsTableWrap"></div>
   </div>

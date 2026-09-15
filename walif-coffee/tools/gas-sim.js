@@ -47,6 +47,7 @@ class Sheet {
   }
   setFrozenRows(n) { this.frozen = n; } getFilter() { return this.filter; } hideSheet() { this.hidden = true; } showSheet() { this.hidden = false; }
   deleteRow(i) { this.data.splice(i - 1, 1); }
+  deleteRows(i, n) { this.data.splice(i - 1, n); }
 }
 class Spreadsheet {
   constructor() { this.sheets = [new Sheet(this, 'Sheet1')]; this.tz = 'Etc/GMT'; this.id = 'SS_' + crypto.randomUUID(); }

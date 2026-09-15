@@ -155,7 +155,7 @@ function styleTable_(table) {
   try {
     table.setBorderWidth(0.5);
     var head = table.getRow(0);
-    for (var c = 0; c < head.getNumCells(); c++) head.getCell(c).setBackgroundColor('#4b2e1e').getChild(0).asParagraph().setForegroundColor('#ffffff').setBold(true);
+    for (var c = 0; c < head.getNumCells(); c++) head.getCell(c).setBackgroundColor('#2f4b3e').getChild(0).asParagraph().setForegroundColor('#f0ead8').setBold(true);
     for (var r = 0; r < table.getNumRows(); r++) for (var k = 0; k < table.getRow(r).getNumCells(); k++) {
       var p = table.getRow(r).getCell(k).getChild(0).asParagraph();
       try { p.setLeftToRight(false); } catch (e) {}

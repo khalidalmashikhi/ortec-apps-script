@@ -7,7 +7,7 @@
   <?!= include('Styles') ?>
 </head>
 <body>
-  <div id="loader"><div class="spinner"></div><div class="muted" id="loaderText">جارٍ التحميل…</div></div>
+  <div id="loader"><div class="spinner"></div><div class="muted" id="loaderText" data-i18n>جارٍ التحميل…</div></div>
   <div id="toasts"></div>
 
   <!-- Login -->
@@ -18,15 +18,27 @@
   <!-- App shell -->
   <div id="view-app" class="hidden">
     <div class="topbar">
-      <div class="brand">☕ <?= appNameAr ?><small><?= appName ?></small></div>
+      <div class="brand">
+        <svg viewBox="0 0 122 40" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <g transform="translate(2 2) scale(.36)" fill="none" stroke="#f0ead8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 96 V52 a40 40 0 0 1 80 0 V96 Z"/><path d="M48 92 V58"/>
+            <path d="M48 58 c-6 -10 -18 -14 -30 -10 c10 2 18 6 24 12"/><path d="M48 58 c6 -10 18 -14 30 -10 c-10 2 -18 6 -24 12"/>
+            <path d="M48 56 c-2 -12 -12 -20 -22 -22 c8 5 14 12 17 20"/><path d="M48 56 c2 -12 12 -20 22 -22 c-8 5 -14 12 -17 20"/>
+            <path d="M48 54 c0 -12 -4 -22 -10 -28 c4 8 6 16 6 26"/><path d="M48 54 c0 -12 4 -22 10 -28 c-4 8 -6 16 -6 26"/>
+          </g>
+          <text x="42" y="27" fill="#f0ead8" font-family="Marcellus, 'Times New Roman', serif" font-size="19" letter-spacing="2">WALIF</text>
+        </svg>
+        <div><span data-i18n>وليف كوفي</span><small data-i18n>النظام المالي والتشغيلي</small></div>
+      </div>
       <div class="who">
         <span id="whoName"></span>
         <span class="badge" id="whoRole"></span>
-        <button class="btn sm secondary" id="btnLogout" type="button">تسجيل الخروج</button>
+        <button class="lang-btn" id="btnLangApp" type="button">English</button>
+        <button class="btn sm secondary" id="btnLogout" type="button" data-i18n>تسجيل الخروج</button>
       </div>
     </div>
     <div class="container">
-      <div id="demoWarning" class="alert warn hidden">⚠️ يجب تغيير كلمات المرور التجريبية قبل الاستخدام الفعلي.</div>
+      <div id="demoWarning" class="alert warn hidden" data-i18n>⚠️ يجب تغيير كلمات المرور التجريبية قبل الاستخدام الفعلي.</div>
       <div id="view-accountant" class="hidden"><?!= include('Accountant') ?></div>
       <div id="view-manager" class="hidden"><?!= include('Dashboard') ?></div>
     </div>

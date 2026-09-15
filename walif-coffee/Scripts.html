@@ -1,4 +1,141 @@
 <script>
+/* ===================== i18n: Arabic is the source text; EN maps Arabic → English ===================== */
+var LANG = 'ar';
+var I18N_EN = {
+  // shell / login
+  'جارٍ التحميل…': 'Loading…', 'وليف كوفي': 'Walif Coffee', 'النظام المالي والتشغيلي': 'Financial & Operations System', 'تسجيل الخروج': 'Log out',
+  '⚠️ يجب تغيير كلمات المرور التجريبية قبل الاستخدام الفعلي.': '⚠️ Change the demo passwords before real use.',
+  'اسم المستخدم': 'Username', 'كلمة المرور': 'Password', 'دخول': 'Sign in', 'العملة: ريال عماني (OMR) · التوقيت: مسقط': 'Currency: Omani Rial (OMR) · Time zone: Muscat',
+  'مدير': 'Manager', 'محاسب': 'Accountant', 'جارٍ التحقق…': 'Checking…', 'فشل تسجيل الدخول': 'Sign-in failed', 'تعذر الاتصال': 'Connection failed', 'تعذر الاتصال بالخادم': 'Could not reach the server', 'خطأ غير متوقع': 'Unexpected error',
+  'انتهت الجلسة، سجل الدخول مرة أخرى.': 'Session expired, please sign in again.',
+  // accountant tabs
+  'رفع المبيعات': 'Sales upload', 'فاتورة مشتريات': 'Purchase invoice', 'مصروف': 'Expense', 'راتب': 'Payroll', 'إيجار': 'Rent', 'سجلاتي': 'My records',
+  'رفع ملف مبيعات Loyverse (CSV)': 'Upload Loyverse sales file (CSV)',
+  'اختر ملف CSV المصدَّر من Loyverse، ثم افحصه لعرض المعاينة قبل الاستيراد. الأعمدة تُطابق بالاسم، ولا يُستورد أي سجل مكرر.': 'Choose the CSV exported from Loyverse, then check it to preview before importing. Columns are matched by name and duplicates are never imported.',
+  'فحص الملف': 'Check file', 'المعاينة': 'Preview', 'اعتماد واستيراد': 'Confirm & import', 'إلغاء': 'Cancel', 'آخر عمليات الاستيراد': 'Recent imports', 'تحديث': 'Refresh',
+  'اختر ملف CSV أولًا': 'Choose a CSV file first', 'الملف يجب أن يكون بصيغة CSV': 'The file must be a CSV',
+  'الملف': 'File', 'الفترة': 'Period', 'عدد الصفوف': 'Rows', 'صالحة للاستيراد': 'Importable', 'مكررة (في الملف/مستوردة سابقًا)': 'Duplicates (in file / already imported)', 'مرفوضة': 'Rejected',
+  'عدد الفواتير الفريدة': 'Unique receipts', 'إجمالي الكمية': 'Total quantity', 'إجمالي المبيعات': 'Gross sales', 'الخصومات': 'Discounts', 'صافي المبيعات': 'Net sales', 'تكلفة البضاعة': 'Cost of goods', 'إجمالي الربح': 'Gross profit', 'الضرائب': 'Taxes', 'سجلات مرتجع': 'Refund rows',
+  'سجلات مرفوضة:': 'Rejected rows:', 'اعتماد الاستيراد': 'Confirm import', 'سيتم حفظ السجلات الصالحة في النظام. السجلات المكررة تُتجاهل تلقائيًا. متابعة؟': 'Valid rows will be saved. Duplicates are skipped automatically. Continue?',
+  'تم الاستيراد بنجاح': 'Import completed', 'السجلات المستوردة': 'Imported rows', 'المكررة': 'Duplicates', 'المرفوضة': 'Rejected', 'إجمالي صافي المبيعات المستوردة': 'Net sales imported',
+  'لا توجد عمليات استيراد بعد.': 'No imports yet.', 'التاريخ': 'Date', 'بواسطة': 'By', 'مستورد': 'Imported', 'مكرر': 'Duplicate', 'مرفوض': 'Rejected', 'الحالة': 'Status',
+  // purchase form
+  'إضافة فاتورة مشتريات': 'Add purchase invoice', 'رقم الفاتورة *': 'Invoice number *', 'تاريخ الفاتورة *': 'Invoice date *', 'اسم المورد *': 'Supplier *', 'تصنيف المشتريات *': 'Purchase category *',
+  'هل هي مشتريات مخزون؟': 'Inventory purchase?', 'نعم': 'Yes', 'لا': 'No', 'طريقة الدفع *': 'Payment method *', 'المبلغ قبل الضريبة *': 'Amount before tax *', 'الضريبة': 'Tax', 'الخصم': 'Discount',
+  'المبلغ المدفوع *': 'Paid amount *', 'حالة الدفع': 'Payment status', 'مرفق الفاتورة (PDF/JPG/PNG)': 'Invoice attachment (PDF/JPG/PNG)', 'إجمالي الفاتورة': 'Invoice total', 'المبلغ المتبقي': 'Remaining',
+  'وصف المشتريات': 'Description', 'ملاحظات': 'Notes', 'راجع المبلغ والتاريخ والمورد قبل الاعتماد. لا يُستخرج محتوى الفاتورة آليًا.': 'Review the amount, date and supplier before saving. Invoice content is not extracted automatically.',
+  'حفظ الفاتورة': 'Save invoice', 'تم حفظ الفاتورة. الإجمالي': 'Invoice saved. Total', 'والمتبقي': 'remaining',
+  // expense form
+  'إضافة مصروف': 'Add expense', 'التاريخ *': 'Date *', 'نوع المصروف *': 'Expense type *', 'المبلغ *': 'Amount *', 'حالة الدفع *': 'Payment status *', 'اسم المستفيد': 'Payee', 'مرفق (اختياري)': 'Attachment (optional)',
+  'البيان *': 'Description *', 'حفظ المصروف': 'Save expense', 'تم حفظ المصروف.': 'Expense saved.',
+  // payroll form
+  'إضافة راتب': 'Add payroll', 'اسم العامل *': 'Employee *', 'الشهر *': 'Month *', 'الراتب الأساسي *': 'Basic salary *', 'بدل': 'Allowance', 'إضافي': 'Overtime', 'خصم': 'Deduction', 'سلفة': 'Advance',
+  'تاريخ الدفع': 'Payment date', 'طريقة الدفع': 'Payment method', 'صافي الراتب': 'Net salary', 'حفظ الراتب': 'Save payroll', 'تم حفظ الراتب. الصافي': 'Payroll saved. Net',
+  // rent form
+  'إضافة إيجار': 'Add rent', 'الشهر / الفترة *': 'Month / period *', 'اسم المؤجر *': 'Landlord *', 'قيمة الإيجار *': 'Rent amount *', 'تاريخ الاستحقاق *': 'Due date *', 'الحالة *': 'Status *', 'حفظ الإيجار': 'Save rent', 'تم حفظ الإيجار.': 'Rent saved.',
+  // records
+  'السجلات التي أدخلتها': 'Records I entered', 'المشتريات': 'Purchases', 'المصروفات': 'Expenses', 'الرواتب': 'Payroll', 'الإيجارات': 'Rents', 'عرض': 'Show', 'لا توجد بيانات.': 'No data.',
+  'رقم الفاتورة': 'Invoice no.', 'المورد': 'Supplier', 'التصنيف': 'Category', 'الإجمالي': 'Total', 'المدفوع': 'Paid', 'المتبقي': 'Remaining', 'مخزون': 'Inventory', 'المرفق': 'Attachment', 'فتح': 'Open',
+  'النوع': 'Type', 'البيان': 'Description', 'المبلغ': 'Amount', 'المستفيد': 'Payee', 'الشهر': 'Month', 'العامل': 'Employee', 'الأساسي': 'Basic', 'البدل': 'Allowance', 'الإضافي': 'Overtime', 'السلفة': 'Advance', 'الصافي': 'Net',
+  'الفترة ': 'Period', 'المؤجر': 'Landlord', 'الاستحقاق': 'Due', 'حالة السجل': 'Record status', 'أدخله': 'Entered by', 'فعّال': 'Active', 'ملغى': 'Cancelled', 'موقوف': 'Inactive', 'تعديل': 'Edit',
+  // manager tabs + dashboard
+  'لوحة التحكم': 'Dashboard', 'المبيعات': 'Sales', 'السجلات': 'Records', 'التقارير': 'Reports', 'الإعدادات': 'Settings', 'سجل العمليات': 'Audit log',
+  'اليوم': 'Today', 'أمس': 'Yesterday', 'آخر 7 أيام': 'Last 7 days', 'هذا الشهر': 'This month', 'الشهر السابق': 'Last month', 'فترة مخصصة': 'Custom range',
+  'من': 'From', 'إلى': 'To', 'الفرع': 'Store', 'جهاز البيع': 'POS', 'الكاشير': 'Cashier', 'الصنف': 'Item', 'تطبيق': 'Apply', 'الكل': 'All',
+  'إجمالي الخصومات': 'Total discounts', 'تكلفة البضاعة المباعة': 'Cost of goods sold', 'مجمل الربح': 'Gross profit', 'هامش مجمل الربح': 'Gross margin', 'مشتريات المخزون': 'Inventory purchases',
+  'المصروفات العامة': 'General expenses', 'الإيجار': 'Rent', 'صافي الربح التشغيلي': 'Operating profit', 'صافي الحركة النقدية': 'Net cash movement', 'عدد الفواتير': 'Receipts', 'متوسط قيمة الفاتورة': 'Average receipt',
+  'مطابقة الربح والنقد': 'Profit vs cash reconciliation', 'صافي الربح المحاسبي (التشغيلي)': 'Accounting (operating) profit', 'الفرق': 'Difference', 'قيمة مشتريات المخزون (فواتير)': 'Inventory purchases (invoices)',
+  'المشتريات المدفوعة فعليًا': 'Purchases actually paid', 'تكلفة البضاعة المباعة (Loyverse)': 'Cost of goods sold (Loyverse)', 'مجمل الربح المحسوب': 'Computed gross profit', 'مجمل الربح حسب Loyverse': 'Gross profit per Loyverse', 'فرق المطابقة': 'Reconciliation difference', 'المرتجعات (Refund)': 'Refunds',
+  'شراء المخزون يؤثر على النقد عند دفعه، بينما تكلفة الجزء المباع منه فقط تظهر في الربح من خلال Cost of goods القادمة من Loyverse. لذلك لا تُخصم فواتير المخزون مرة ثانية من صافي الربح.': 'Buying inventory affects cash when it is paid, while only the cost of the part sold appears in profit through Loyverse "Cost of goods". Inventory invoices are therefore never deducted twice from net profit.',
+  'المبيعات اليومية': 'Daily sales', 'الربح اليومي': 'Daily profit', 'توزيع المصروفات': 'Expense breakdown', 'أفضل الأصناف': 'Top items', 'المبيعات مقابل المصروفات': 'Sales vs expenses', 'اتجاه صافي الربح': 'Net profit trend',
+  'المبيعات حسب الساعة': 'Sales by hour', 'أفضل 10 أصناف': 'Top 10 items', 'الأصناف الأقل مبيعًا': 'Lowest-selling items', 'المبيعات حسب التصنيف': 'Sales by category', 'المبيعات حسب الكاشير': 'Sales by cashier',
+  'المبيعات حسب الفرع / نقطة البيع': 'Sales by store / POS', 'المشتريات حسب المورد': 'Purchases by supplier', 'المشتريات حسب التصنيف': 'Purchases by category', 'المصروفات حسب النوع': 'Expenses by type', 'الرواتب حسب الشهر': 'Payroll by month',
+  'الإيجارات وحالة الدفع': 'Rents and payment status', 'مقارنة شهرية: المبيعات والمصروفات والربح': 'Monthly comparison: sales, expenses, profit', 'مقارنة يومية: المبيعات والمصروفات والربح': 'Daily comparison: sales, expenses, profit',
+  'التكلفة': 'Cost', 'الفواتير': 'Receipts', 'الساعة': 'Hour', 'الكمية': 'Qty', 'الربح': 'Profit', 'حسب الصنف': 'By item', 'نقاط البيع': 'POS terminals', 'الدفع': 'Paid on', 'المصروفات التشغيلية': 'Operating expenses', 'المشتريات المدفوعة': 'Purchases paid', 'صافي الربح': 'Net profit',
+  'لا توجد بيانات كافية': 'Not enough data',
+  // sales list
+  'سجلات المبيعات المستوردة': 'Imported sales rows', 'عدد السجلات': 'Rows', 'يُعرض': 'showing', 'الفاتورة': 'Receipt', 'مرتجع': 'Refund', 'بيع': 'Sale', 'سجل عمليات الاستيراد': 'Import log',
+  // records (manager)
+  'المشتريات والمصروفات والرواتب والإيجارات': 'Purchases, expenses, payroll and rents', 'إلغاء السجل': 'Cancel record',
+  'سيبقى السجل محفوظًا بحالة "ملغى" ولن يدخل في الحسابات. اكتب سبب الإلغاء:': 'The record stays stored as "Cancelled" and is excluded from all figures. Enter the reason:', 'تم إلغاء السجل': 'Record cancelled',
+  'الوصف': 'Description', 'قبل الضريبة': 'Before tax', 'مخزون؟': 'Inventory?', 'سبب التعديل *': 'Reason for change *', 'تعديل السجل': 'Edit record', 'تم حفظ التعديل': 'Changes saved', 'السبب مطلوب': 'Reason is required',
+  // reports
+  'نوع التقرير': 'Report type', 'تقرير يومي': 'Daily report', 'تقرير أسبوعي': 'Weekly report', 'تقرير شهري': 'Monthly report', 'تقرير فترة مخصصة': 'Custom period report', 'تقرير مشتريات': 'Purchases report',
+  'تقرير مصروفات': 'Expenses report', 'تقرير رواتب': 'Payroll report', 'تقرير إيجارات': 'Rent report', 'تقرير ربح وخسارة': 'Profit & loss report', 'تقرير حركة نقدية': 'Cash movement report',
+  'من / التاريخ': 'From / date', 'تنزيل PDF': 'Download PDF',
+  'للتقرير اليومي والشهري يُستخدم حقل "من" لتحديد اليوم/الشهر. الأسبوعي: 7 أيام تنتهي بتاريخ "إلى". تُحفظ ملفات PDF في Google Drive داخل مجلد Walif Coffee Accounting/Reports.': 'Daily and monthly reports use the "From" field for the day/month. Weekly: 7 days ending on "To". PDFs are saved in Google Drive under Walif Coffee Accounting/Reports.',
+  'تم إنشاء': 'Created', 'تم حفظ التقرير في Google Drive': 'Report saved to Google Drive',
+  'التقرير اليومي': 'Daily report', 'التقرير الأسبوعي': 'Weekly report', 'التقرير الشهري': 'Monthly report', 'تقرير المشتريات': 'Purchases report', 'تقرير المصروفات': 'Expenses report', 'تقرير الرواتب': 'Payroll report', 'تقرير الإيجارات': 'Rent report', 'تقرير الربح والخسارة': 'Profit & loss report', 'تقرير الحركة النقدية': 'Cash movement report',
+  'المؤشرات': 'Indicators', 'أفضل 5 أصناف': 'Top 5 items', 'المبيعات حسب نقطة البيع': 'Sales by POS', 'حسب المورد': 'By supplier', 'حسب التصنيف': 'By category', 'حسب النوع': 'By type', 'حسب الشهر': 'By month', 'التفاصيل': 'Details',
+  'هامش مجمل الربح %': 'Gross margin %', 'مشتريات المخزون (إجمالي الفواتير)': 'Inventory purchases (invoice totals)', 'الرواتب المدفوعة': 'Payroll paid', 'الإيجار المدفوع': 'Rent paid', 'متوسط الفاتورة': 'Average receipt',
+  'إجمالي المشتريات': 'Total purchases', 'مشتريات غير مخزنية': 'Non-inventory purchases', 'إجمالي المصروفات': 'Total expenses', 'غير المدفوع': 'Unpaid', 'إجمالي الرواتب': 'Total payroll', 'إجمالي الإيجار': 'Total rent', 'المستحق': 'Due',
+  'مجمل ربح Loyverse (للمطابقة)': 'Loyverse gross profit (reconciliation)', 'إجمالي المصروفات التشغيلية': 'Total operating expenses', 'صافي المبيعات (داخل)': 'Net sales (in)', 'المصروفات المدفوعة': 'Expenses paid',
+  'للمقارنة: صافي الربح المحاسبي': 'For comparison: accounting profit', 'الفرق (نقد − ربح)': 'Difference (cash − profit)',
+  'لا توجد مبيعات مستوردة لهذه الفترة.': 'No imported sales for this period.',
+  // settings
+  'التقرير اليومي عبر البريد': 'Daily e-mail report', 'بريد مستلم التقرير': 'Recipient e-mail', 'ساعة الإرسال (توقيت مسقط)': 'Send hour (Muscat time)', 'محتوى التقرير': 'Report content',
+  'تقرير اليوم السابق كاملًا (الافتراضي)': 'Previous full day (default)', 'تقرير اليوم حتى وقت الإرسال': 'Today up to send time', 'تفعيل الإرسال اليومي التلقائي': 'Enable automatic daily sending',
+  'حفظ الإعدادات': 'Save settings', 'إرسال تقرير تجريبي الآن': 'Send test report now', 'إعادة إنشاء Trigger': 'Rebuild trigger', 'تم حفظ الإعدادات': 'Settings saved',
+  '✅ المشغل اليومي (Trigger) موجود.': '✅ Daily trigger is set.', 'ℹ️ لا يوجد مشغل يومي حاليًا. فعّل الإرسال واحفظ الإعدادات أو اضغط إعادة إنشاء Trigger.': 'ℹ️ No daily trigger yet. Enable sending and save, or click Rebuild trigger.',
+  'إرسال تقرير تجريبي': 'Send test report', 'سيتم إنشاء تقرير PDF وإرساله إلى البريد المحفوظ في الإعدادات. متابعة؟': 'A PDF report will be generated and e-mailed to the saved address. Continue?', 'تم الإرسال إلى': 'Sent to', 'تم إنشاء المشغل اليومي عند الساعة': 'Daily trigger created at',
+  'بداية جديدة (تصفير البيانات المالية)': 'Fresh start (reset financial data)',
+  'يحذف كل المبيعات المستوردة والمشتريات والمصروفات والرواتب والإيجارات نهائيًا، ويُبقي المستخدمين والإعدادات وسجل العمليات. استخدمه مرة واحدة قبل رفع أول ملف حقيقي.': 'Permanently deletes all imported sales, purchases, expenses, payroll and rents; keeps users, settings and the audit log. Use once before uploading the first real file.',
+  'تصفير البيانات المالية': 'Reset financial data', 'سيتم حذف كل المبيعات والمشتريات والمصروفات والرواتب والإيجارات نهائيًا. اكتب RESET للتأكيد:': 'All sales, purchases, expenses, payroll and rents will be permanently deleted. Type RESET to confirm:',
+  'تم تصفير البيانات المالية. النظام يبدأ من الصفر.': 'Financial data reset. The system starts from zero.',
+  'تغيير كلمة المرور': 'Change password', 'المستخدم': 'User', 'كلمة المرور الجديدة (6 أحرف على الأقل)': 'New password (min 6 characters)', 'تأكيد كلمة المرور': 'Confirm password', 'تغيير': 'Change',
+  'كلمتا المرور غير متطابقتين': 'Passwords do not match', 'تم تغيير كلمة المرور': 'Password changed', 'المستخدمون': 'Users', 'الدور': 'Role', 'الاسم': 'Name', 'آخر دخول': 'Last login', 'كلمة مرور تجريبية؟': 'Demo password?', 'الإصدار': 'Version',
+  // audit
+  'سجل العمليات (Audit Log)': 'Audit log', 'سجل الأخطاء (Error Log)': 'Error log', 'الوقت': 'Time', 'الإجراء': 'Action', 'الكيان': 'Entity', 'المعرف': 'Record ID', 'التفاصيل': 'Details', 'النتيجة': 'Result',
+  'الدالة': 'Function', 'الرسالة': 'Message', 'السجل المرتبط': 'Related record', 'معالج؟': 'Resolved?', 'لا توجد أخطاء مسجلة 🎉': 'No errors logged 🎉',
+  // modal
+  'تأكيد': 'Confirm', 'تراجع': 'Back', 'حفظ': 'Save',
+  // stored enumeration values (display only; the stored value stays Arabic)
+  'بن': 'Coffee beans', 'حليب': 'Milk', 'أكواب وعبوات': 'Cups & packaging', 'مواد غذائية': 'Food supplies', 'مواد تنظيف': 'Cleaning supplies', 'معدات': 'Equipment', 'صيانة': 'Maintenance', 'مخزون آخر': 'Other inventory', 'مشتريات غير مخزنية': 'Non-inventory purchase',
+  'كهرباء': 'Electricity', 'ماء': 'Water', 'إنترنت': 'Internet', 'توصيل': 'Delivery', 'تنظيف': 'Cleaning', 'تسويق': 'Marketing', 'رسوم حكومية': 'Government fees', 'مستلزمات': 'Supplies', 'أخرى': 'Other',
+  'نقد': 'Cash', 'بطاقة': 'Card', 'تحويل بنكي': 'Bank transfer', 'آجل': 'Credit', 'مدفوعة': 'Paid', 'مدفوعة جزئيًا': 'Partially paid', 'غير مدفوعة': 'Unpaid', 'مدفوع': 'Paid', 'غير مدفوع': 'Unpaid', 'متأخر': 'Overdue',
+  // server messages
+  'أدخل اسم المستخدم وكلمة المرور.': 'Enter your username and password.', 'اسم المستخدم أو كلمة المرور غير صحيحة.': 'Incorrect username or password.', 'انتهت الجلسة.': 'Session expired.',
+  'انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى.': 'Session expired, please sign in again.', 'ليس لديك صلاحية لتنفيذ هذا الإجراء.': 'You are not allowed to do this.', 'حدث خطأ غير متوقع.': 'An unexpected error occurred.',
+  'أدخل بريد المستلم في الإعدادات أولًا واحفظه.': 'Enter and save the recipient e-mail in settings first.', 'إجمالي الفاتورة يجب أن يكون أكبر من صفر.': 'Invoice total must be greater than zero.',
+  'اسم العامل مطلوب.': 'Employee name is required.', 'اسم المؤجر مطلوب.': 'Landlord name is required.', 'اسم المورد مطلوب.': 'Supplier name is required.', 'اسم مستخدم غير صالح.': 'Invalid username.',
+  'البريد الإلكتروني غير صالح.': 'Invalid e-mail address.', 'البيان مطلوب.': 'Description is required.', 'السجل غير موجود.': 'Record not found.', 'السجل ملغى مسبقًا.': 'Record is already cancelled.',
+  'الشهر أو الفترة مطلوب.': 'Month or period is required.', 'الشهر يجب أن يكون بصيغة YYYY-MM.': 'Month must be in YYYY-MM format.', 'القيم لا يمكن أن تكون سالبة.': 'Values cannot be negative.', 'المبالغ لا يمكن أن تكون سالبة.': 'Amounts cannot be negative.',
+  'المبلغ المدفوع غير صالح.': 'Invalid paid amount.', 'المبلغ يجب أن يكون أكبر من صفر.': 'Amount must be greater than zero.', 'المستخدم غير موجود.': 'User not found.',
+  'الملف فارغ أو لا يحتوي على بيانات.': 'The file is empty.', 'النظام مشغول حاليًا، حاول مرة أخرى بعد لحظات.': 'The system is busy, try again in a moment.', 'بريد المستلم غير صالح.': 'Invalid recipient e-mail.',
+  'تاريخ الاستحقاق غير صالح.': 'Invalid due date.', 'تاريخ الدفع مطلوب للإيجار المدفوع.': 'Payment date is required for paid rent.', 'تاريخ الدفع مطلوب للراتب المدفوع.': 'Payment date is required for paid payroll.',
+  'تاريخ الفاتورة غير صالح.': 'Invalid invoice date.', 'تاريخ المصروف غير صالح.': 'Invalid expense date.', 'تصنيف المشتريات غير صالح.': 'Invalid purchase category.', 'حالة الإيجار غير صالحة.': 'Invalid rent status.',
+  'حالة الدفع غير صالحة.': 'Invalid payment status.', 'حجم المرفق يتجاوز الحد المسموح.': 'Attachment exceeds the size limit.', 'حجم الملف كبير جدًا.': 'The file is too large.', 'رقم الفاتورة مطلوب.': 'Invoice number is required.',
+  'ساعة الإرسال يجب أن تكون بين 0 و 23.': 'Send hour must be between 0 and 23.', 'سبب الإلغاء مطلوب.': 'Cancellation reason is required.', 'سبب التعديل مطلوب.': 'Change reason is required.',
+  'سجلات المبيعات المستوردة لا تُعدَّل، يمكن إلغاؤها فقط.': 'Imported sales rows cannot be edited, only cancelled.', 'صافي الراتب سالب، راجع الخصم والسلفة.': 'Net salary is negative, check deduction and advance.',
+  'طريقة الدفع غير صالحة.': 'Invalid payment method.', 'قيمة الإيجار يجب أن تكون أكبر من صفر.': 'Rent amount must be greater than zero.', 'كلمة المرور يجب أن تكون 6 أحرف على الأقل.': 'Password must be at least 6 characters.',
+  'لا توجد تغييرات.': 'No changes.', 'لا يمكن استخدام كلمة المرور التجريبية.': 'The demo password cannot be used.', 'لا يمكن تعديل سجل ملغى.': 'A cancelled record cannot be edited.',
+  'لا يمكن تفعيل الإرسال اليومي بدون بريد مستلم.': 'Daily sending needs a recipient e-mail.', 'نوع التقرير غير معروف.': 'Unknown report type.', 'نوع السجل غير معروف.': 'Unknown record type.',
+  'نوع المرفق غير مسموح. المسموح: PDF, JPG, JPEG, PNG': 'Attachment type not allowed. Allowed: PDF, JPG, JPEG, PNG', 'نوع المصروف غير صالح.': 'Invalid expense type.',
+  'هذه الفاتورة مسجلة مسبقًا (نفس المورد ورقم الفاتورة والتاريخ والإجمالي).': 'This invoice already exists (same supplier, number, date and total).', 'يوجد راتب مسجل لهذا العامل في الشهر نفسه.': 'A payroll entry already exists for this employee and month.',
+  'اكتب RESET للتأكيد.': 'Type RESET to confirm.', 'دور غير صالح.': 'Invalid role.', 'غير مدعوم.': 'Not supported.', 'المشروع غير مرتبط بملف Google Sheets.': 'The project is not bound to a Google Sheet.',
+  'فرق بين مجمل الربح المحسوب ومجمل ربح Loyverse': 'Difference between computed gross profit and Loyverse gross profit', 'مشتريات غير مدفوعة (متبقية)': 'Unpaid purchases (remaining)', 'مصروفات غير مدفوعة': 'Unpaid expenses',
+  'أخطاء نظام غير معالجة خلال الفترة': 'Unresolved system errors in the period', 'عمليات استيراد فاشلة خلال الفترة': 'Failed imports in the period', 'تاريخ التقرير': 'Report date', 'نوع المرفق غير مسموح (PDF, JPG, PNG فقط).': 'Attachment type not allowed (PDF, JPG, PNG only).', 'حجم المرفق يتجاوز': 'Attachment exceeds'
+};
+function t(k) {
+  if (k == null) return ''; k = String(k); if (LANG !== 'en') return k;
+  var v = I18N_EN[k]; if (v !== undefined) return v;
+  var m;
+  if ((m = /^الفترة: (\S+) إلى (\S+)$/.exec(k))) return 'Period: ' + m[1] + ' to ' + m[2];
+  if ((m = /^مشتريات المخزون \((.*)\) لا تُخصم هنا/.exec(k))) return 'Inventory purchases (' + m[1] + ') are not deducted here because the cost of the part sold is already inside cost of goods sold.';
+  if ((m = /^(.*?)(:\s*.*)$/.exec(k)) && I18N_EN[m[1]]) return I18N_EN[m[1]] + m[2];
+  return k;
+}
+/** Translate a stored enumeration value for display only (stored data stays Arabic). */
+function tv(v) { return LANG === 'en' && I18N_EN[String(v)] ? I18N_EN[String(v)] : (v == null ? '' : v); }
+function setLang(l) {
+  LANG = l === 'en' ? 'en' : 'ar';
+  try { localStorage.setItem('wc_lang', LANG); } catch (e) {}
+  document.documentElement.lang = LANG; document.documentElement.dir = LANG === 'ar' ? 'rtl' : 'ltr';
+  document.querySelectorAll('[data-i18n]').forEach(function (el) { if (!el.dataset.i18n) el.dataset.i18n = el.textContent.trim(); el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll('.lang-btn').forEach(function (b) { b.textContent = LANG === 'ar' ? 'English' : 'العربية'; });
+  if (window.App && App.boot) { UI.fillLists(document); if (App.user) { $('#whoRole').textContent = App.user.role === 'manager' ? t('مدير') : t('محاسب'); } if (App.user && App.user.role === 'manager' && window.Mgr) Mgr.rerender(); if (App.user && App.user.role !== 'manager' && window.Acc) Acc.rerender(); }
+}
+
 /* ===================== Core: helpers, API bridge, UI primitives ===================== */
 function $(sel) { return document.querySelector(sel); }
 
@@ -7,18 +144,19 @@ var UI = {
   money: function (n) { n = Number(n) || 0; return n.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 }); },
   int: function (n) { return (Number(n) || 0).toLocaleString('en-US'); },
   pct: function (n) { return (Number(n) || 0).toFixed(1) + '%'; },
-  badge: function (t, cls) {
-    if (!cls) cls = /مدفوع$|مدفوعة$|^OK$|ACTIVE/.test(String(t)) ? 'ok' : (/متأخر|غير|CANCELLED|FAILED/.test(String(t)) ? 'err' : 'warn');
-    return '<span class="badge ' + cls + '">' + UI.esc(t) + '</span>';
+  badge: function (v, cls) {
+    var s = String(v == null ? '' : v);
+    if (!cls) cls = /مدفوع$|مدفوعة$|^OK$|ACTIVE|^Paid$|^Active$/.test(s) ? 'ok' : (/متأخر|غير|CANCELLED|FAILED|Unpaid|Overdue|Cancelled/.test(s) ? 'err' : 'warn');
+    return '<span class="badge ' + cls + '">' + UI.esc(tv(s)) + '</span>';
   },
   loading: function (on, text) { $('#loader').classList.toggle('hidden', !on); if (text) $('#loaderText').textContent = text; },
   toast: function (msg, cls) {
-    var t = document.createElement('div'); t.className = 'toast ' + (cls || ''); t.textContent = msg;
-    $('#toasts').appendChild(t); setTimeout(function () { t.remove(); }, cls === 'err' ? 6000 : 3500);
+    var el = document.createElement('div'); el.className = 'toast ' + (cls || ''); el.textContent = msg;
+    $('#toasts').appendChild(el); setTimeout(function () { el.remove(); }, cls === 'err' ? 6000 : 3500);
   },
-  err: function (e) { var m = e && e.message ? e.message : String(e); if (m !== '__silent__') UI.toast(m, 'err'); },
+  err: function (e) { var m = e && e.message ? e.message : String(e); if (m !== '__silent__') UI.toast(t(m), 'err'); },
   table: function (headers, rows, escaped) {
-    if (!rows || !rows.length) return '<p class="muted">لا توجد بيانات.</p>';
+    if (!rows || !rows.length) return '<p class="muted">' + t('لا توجد بيانات.') + '</p>';
     var isNum = function (v) { return typeof v === 'number' || /^-?[\d,]+(\.\d+)?$/.test(String(v)); };
     return '<table><thead><tr>' + headers.map(function (h) { return '<th>' + UI.esc(h) + '</th>'; }).join('') + '</tr></thead><tbody>' +
       rows.map(function (r) { return '<tr>' + r.map(function (v) { return '<td class="' + (isNum(v) ? 'n' : '') + '">' + (escaped || /^<(span|button|a)\b/.test(String(v)) ? v : UI.esc(v)) + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table>';
@@ -26,21 +164,22 @@ var UI = {
   recordsTable: function (entity, cols, rows, managerActions) {
     var AR = { 'Invoice Date': 'التاريخ', 'Invoice Number': 'رقم الفاتورة', Supplier: 'المورد', Category: 'التصنيف', Total: 'الإجمالي', 'Paid Amount': 'المدفوع', 'Remaining Amount': 'المتبقي', 'Payment Method': 'طريقة الدفع', 'Payment Status': 'حالة الدفع', 'Is Inventory': 'مخزون', 'Attachment URL': 'المرفق',
       'Expense Date': 'التاريخ', 'Expense Type': 'النوع', Description: 'البيان', Amount: 'المبلغ', Payee: 'المستفيد', Month: 'الشهر', Employee: 'العامل', 'Basic Salary': 'الأساسي', Allowance: 'البدل', Overtime: 'الإضافي', Deduction: 'الخصم', Advance: 'السلفة', 'Net Salary': 'الصافي', 'Payment Date': 'تاريخ الدفع',
-      Period: 'الفترة', Landlord: 'المؤجر', 'Due Date': 'الاستحقاق', Status: 'الحالة', 'Record Status': 'حالة السجل', 'Created By': 'أدخله' };
-    var headers = cols.map(function (c) { return AR[c] || c; }).concat(['حالة السجل', 'أدخله']).concat(managerActions ? [''] : []);
+      Period: 'الفترة', Landlord: 'المؤجر', 'Due Date': 'الاستحقاق', Status: 'الحالة' };
+    var headers = cols.map(function (c) { return t(AR[c] || c); }).concat([t('حالة السجل'), t('أدخله')]).concat(managerActions ? [''] : []);
     var moneyCols = /Total|Amount|Salary|Allowance|Overtime|Deduction|Advance|Subtotal|Tax|Discount/;
     return UI.table(headers, rows.map(function (r) {
       var cells = cols.map(function (c) {
         var v = r[c];
-        if (c === 'Attachment URL') return v ? '<a href="' + UI.esc(v) + '" target="_blank" rel="noopener">📎 فتح</a>' : '—';
+        if (c === 'Attachment URL') return v ? '<a href="' + UI.esc(v) + '" target="_blank" rel="noopener">📎 ' + t('فتح') + '</a>' : '—';
         if (moneyCols.test(c)) return UI.money(v);
         if (/Date$/.test(c) && v) return String(v).slice(0, 10);
         if (/Status$/.test(c)) return UI.badge(v);
+        if (c === 'Is Inventory' || c === 'Payment Method' || c === 'Category' || c === 'Expense Type') return tv(v);
         return v == null ? '' : v;
       });
-      cells.push(UI.badge(r['Record Status'] === 'ACTIVE' ? 'فعّال' : 'ملغى', r['Record Status'] === 'ACTIVE' ? 'ok' : 'err') + (r['Cancel Reason'] ? ' <small class="muted">' + UI.esc(r['Cancel Reason']) + '</small>' : ''));
+      cells.push(UI.badge(r['Record Status'] === 'ACTIVE' ? t('فعّال') : t('ملغى'), r['Record Status'] === 'ACTIVE' ? 'ok' : 'err') + (r['Cancel Reason'] ? ' <small class="muted">' + UI.esc(r['Cancel Reason']) + '</small>' : ''));
       cells.push(r['Created By'] || '');
-      if (managerActions) cells.push(r['Record Status'] === 'ACTIVE' ? '<button class="btn sm ghost" data-edit="1" data-id="' + UI.esc(r['Internal ID']) + '" type="button">تعديل</button> <button class="btn sm ghost" data-cancel="' + entity + '" data-id="' + UI.esc(r['Internal ID']) + '" type="button">إلغاء</button>' : '');
+      if (managerActions) cells.push(r['Record Status'] === 'ACTIVE' ? '<button class="btn sm ghost" data-edit="1" data-id="' + UI.esc(r['Internal ID']) + '" type="button">' + t('تعديل') + '</button> <button class="btn sm ghost" data-cancel="' + entity + '" data-id="' + UI.esc(r['Internal ID']) + '" type="button">' + t('إلغاء') + '</button>' : '');
       return cells;
     }));
   },
@@ -50,21 +189,21 @@ var UI = {
   },
   confirm: function (title, text) {
     return new Promise(function (resolve) {
-      var m = UI.modal('<h3>' + UI.esc(title) + '</h3><p>' + UI.esc(text) + '</p><div class="actions"><button class="btn" id="mOk" type="button">تأكيد</button><button class="btn ghost" id="mNo" type="button">تراجع</button></div>');
+      var m = UI.modal('<h3>' + UI.esc(title) + '</h3><p>' + UI.esc(text) + '</p><div class="actions"><button class="btn" id="mOk" type="button">' + t('تأكيد') + '</button><button class="btn ghost" id="mNo" type="button">' + t('تراجع') + '</button></div>');
       m.querySelector('#mOk').onclick = function () { m.remove(); resolve(true); };
       m.querySelector('#mNo').onclick = function () { m.remove(); resolve(false); };
     });
   },
   prompt: function (title, text) {
     return new Promise(function (resolve) {
-      var m = UI.modal('<h3>' + UI.esc(title) + '</h3><p>' + UI.esc(text) + '</p><input id="mIn" maxlength="500"><div class="actions"><button class="btn danger" id="mOk" type="button">تأكيد</button><button class="btn ghost" id="mNo" type="button">تراجع</button></div>');
-      m.querySelector('#mOk').onclick = function () { var v = m.querySelector('#mIn').value.trim(); if (!v) { UI.toast('السبب مطلوب', 'err'); return; } m.remove(); resolve(v); };
+      var m = UI.modal('<h3>' + UI.esc(title) + '</h3><p>' + UI.esc(text) + '</p><input id="mIn" maxlength="500"><div class="actions"><button class="btn danger" id="mOk" type="button">' + t('تأكيد') + '</button><button class="btn ghost" id="mNo" type="button">' + t('تراجع') + '</button></div>');
+      m.querySelector('#mOk').onclick = function () { var v = m.querySelector('#mIn').value.trim(); if (!v) { UI.toast(t('السبب مطلوب'), 'err'); return; } m.remove(); resolve(v); };
       m.querySelector('#mNo').onclick = function () { m.remove(); resolve(null); };
     });
   },
   form: function (title, innerHtml) {
     return new Promise(function (resolve) {
-      var m = UI.modal('<h3>' + UI.esc(title) + '</h3><form id="mForm">' + innerHtml + '<div class="actions"><button class="btn" type="submit">حفظ</button><button class="btn ghost" id="mNo" type="button">تراجع</button></div></form>');
+      var m = UI.modal('<h3>' + UI.esc(title) + '</h3><form id="mForm">' + innerHtml + '<div class="actions"><button class="btn" type="submit">' + t('حفظ') + '</button><button class="btn ghost" id="mNo" type="button">' + t('تراجع') + '</button></div></form>');
       m.querySelector('#mForm').onsubmit = function (e) { e.preventDefault(); var d = {}; new FormData(e.target).forEach(function (v, k) { d[k] = v; }); m.remove(); resolve(d); };
       m.querySelector('#mNo').onclick = function () { m.remove(); resolve(null); };
     });
@@ -83,8 +222,9 @@ var UI = {
   },
   fillLists: function (root) {
     root.querySelectorAll('select[data-list]').forEach(function (s) {
-      var list = App.boot.lists[s.dataset.list] || [];
-      s.innerHTML = list.map(function (v) { return '<option value="' + UI.esc(v) + '">' + UI.esc(v) + '</option>'; }).join('');
+      var list = App.boot.lists[s.dataset.list] || [], cur = s.value;
+      s.innerHTML = list.map(function (v) { return '<option value="' + UI.esc(v) + '">' + UI.esc(tv(v)) + '</option>'; }).join('');
+      if (cur) s.value = cur;
     });
   },
   readFileText: function (file) { return new Promise(function (res, rej) { var r = new FileReader(); r.onload = function () { res(r.result); }; r.onerror = rej; r.readAsText(file, 'UTF-8'); }); },
@@ -122,7 +262,7 @@ var App = {
         .withSuccessHandler(function (r) {
           UI.loading(false);
           if (!r || r.ok === false) {
-            if (r && r.code === 'AUTH') { App.forceLogout('انتهت الجلسة، سجل الدخول مرة أخرى.'); return reject(new Error('__silent__')); }
+            if (r && r.code === 'AUTH') { App.forceLogout(t('انتهت الجلسة، سجل الدخول مرة أخرى.')); return reject(new Error('__silent__')); }
             return reject(new Error(r && r.error ? r.error : 'خطأ غير متوقع'));
           }
           resolve(r);
@@ -132,6 +272,9 @@ var App = {
     });
   },
   start: function () {
+    var saved = 'ar'; try { saved = localStorage.getItem('wc_lang') || 'ar'; } catch (e) {}
+    setLang(saved);
+    document.querySelectorAll('.lang-btn').forEach(function (b) { b.addEventListener('click', function () { setLang(LANG === 'ar' ? 'en' : 'ar'); }); });
     try { App.token = sessionStorage.getItem('wc_token'); } catch (e) {}
     $('#loginForm').addEventListener('submit', App.login);
     $('#btnLogout').addEventListener('click', App.logout);
@@ -147,19 +290,19 @@ var App = {
   login: function (e) {
     e.preventDefault();
     var u = $('#loginUser').value.trim(), p = $('#loginPass').value;
-    $('#loginError').classList.add('hidden'); $('#loginBtn').disabled = true; UI.loading(true, 'جارٍ التحقق…');
+    $('#loginError').classList.add('hidden'); $('#loginBtn').disabled = true; UI.loading(true, t('جارٍ التحقق…'));
     google.script.run.withSuccessHandler(function (r) {
       $('#loginBtn').disabled = false;
-      if (!r || !r.ok) { UI.loading(false); $('#loginError').textContent = (r && r.error) || 'فشل تسجيل الدخول'; $('#loginError').classList.remove('hidden'); return; }
+      if (!r || !r.ok) { UI.loading(false); $('#loginError').textContent = t((r && r.error) || 'فشل تسجيل الدخول'); $('#loginError').classList.remove('hidden'); return; }
       App.token = r.token; try { sessionStorage.setItem('wc_token', r.token); } catch (x) {}
       $('#loginPass').value = '';
       App.api('api_bootstrap').then(App.enter).catch(UI.err);
-    }).withFailureHandler(function (err) { $('#loginBtn').disabled = false; UI.loading(false); $('#loginError').textContent = err.message || 'تعذر الاتصال'; $('#loginError').classList.remove('hidden'); })
+    }).withFailureHandler(function (err) { $('#loginBtn').disabled = false; UI.loading(false); $('#loginError').textContent = t(err.message || 'تعذر الاتصال'); $('#loginError').classList.remove('hidden'); })
       .api_login(u, p);
   },
   enter: function (boot) {
     App.boot = boot; App.user = boot.user; App.today = boot.today;
-    $('#whoName').textContent = boot.user.displayName; $('#whoRole').textContent = boot.user.role === 'manager' ? 'مدير' : 'محاسب';
+    $('#whoName').textContent = boot.user.displayName; $('#whoRole').textContent = boot.user.role === 'manager' ? t('مدير') : t('محاسب');
     $('#demoWarning').classList.toggle('hidden', !(boot.demoPasswordsActive && boot.user.role === 'manager'));
     $('#view-login').classList.add('hidden'); $('#view-app').classList.remove('hidden');
     UI.fillLists(document);
@@ -167,8 +310,8 @@ var App = {
     else { $('#view-accountant').classList.remove('hidden'); $('#view-manager').classList.add('hidden'); Acc.init(); }
   },
   logout: function () {
-    var t = App.token; App.token = null; try { sessionStorage.removeItem('wc_token'); } catch (e) {}
-    google.script.run.api_logout(t);
+    var tk = App.token; App.token = null; try { sessionStorage.removeItem('wc_token'); } catch (e) {}
+    google.script.run.api_logout(tk);
     location.reload();
   },
   forceLogout: function (msg) { App.token = null; try { sessionStorage.removeItem('wc_token'); } catch (e) {} App.showLogin(); $('#loginError').textContent = msg; $('#loginError').classList.remove('hidden'); }
@@ -176,8 +319,9 @@ var App = {
 
 /* ===================== Accountant logic ===================== */
 var Acc = (function () {
-  var csvText = '', csvName = '';
+  var csvText = '', csvName = '', inited = false;
   function init() {
+    if (inited) { loadImports(); return; } inited = true;
     UI.tabs('#accTabs', '.acc-tab', function (id) { if (id === 'acc-records') loadRecords(); });
     document.querySelectorAll('#view-accountant input[type=date]').forEach(function (i) { if (!i.value && /invoiceDate|expenseDate/.test(i.name)) i.value = App.today; });
     var ym = App.today.slice(0, 7); ['#payrollForm [name=month]', '#rentForm [name=period]'].forEach(function (s) { $(s).value = ym; });
@@ -187,10 +331,10 @@ var Acc = (function () {
     $('#btnRefreshImports').addEventListener('click', loadImports);
     $('#purchaseForm').addEventListener('input', purchaseTotals); purchaseTotals();
     $('#payrollForm').addEventListener('input', payrollNet);
-    $('#purchaseForm').addEventListener('submit', function (e) { submit(e, 'api_addPurchase', true, function (r) { return 'تم حفظ الفاتورة. الإجمالي ' + UI.money(r.total) + ' والمتبقي ' + UI.money(r.remaining); }); });
-    $('#expenseForm').addEventListener('submit', function (e) { submit(e, 'api_addExpense', true, function () { return 'تم حفظ المصروف.'; }); });
-    $('#payrollForm').addEventListener('submit', function (e) { submit(e, 'api_addPayroll', false, function (r) { return 'تم حفظ الراتب. الصافي ' + UI.money(r.netSalary); }); });
-    $('#rentForm').addEventListener('submit', function (e) { submit(e, 'api_addRent', true, function () { return 'تم حفظ الإيجار.'; }); });
+    $('#purchaseForm').addEventListener('submit', function (e) { submit(e, 'api_addPurchase', true, function (r) { return t('تم حفظ الفاتورة. الإجمالي') + ' ' + UI.money(r.total) + ' ' + t('والمتبقي') + ' ' + UI.money(r.remaining); }); });
+    $('#expenseForm').addEventListener('submit', function (e) { submit(e, 'api_addExpense', true, function () { return t('تم حفظ المصروف.'); }); });
+    $('#payrollForm').addEventListener('submit', function (e) { submit(e, 'api_addPayroll', false, function (r) { return t('تم حفظ الراتب. الصافي') + ' ' + UI.money(r.netSalary); }); });
+    $('#rentForm').addEventListener('submit', function (e) { submit(e, 'api_addRent', true, function () { return t('تم حفظ الإيجار.'); }); });
     $('#btnLoadRecords').addEventListener('click', loadRecords);
     loadImports();
   }
@@ -220,8 +364,8 @@ var Acc = (function () {
   // ---- CSV
   function previewCsv() {
     var f = $('#csvFile').files[0];
-    if (!f) { UI.toast('اختر ملف CSV أولًا', 'err'); return; }
-    if (!/\.csv$/i.test(f.name)) { UI.toast('الملف يجب أن يكون بصيغة CSV', 'err'); return; }
+    if (!f) { UI.toast(t('اختر ملف CSV أولًا'), 'err'); return; }
+    if (!/\.csv$/i.test(f.name)) { UI.toast(t('الملف يجب أن يكون بصيغة CSV'), 'err'); return; }
     UI.readFileText(f).then(function (text) {
       csvText = text; csvName = f.name;
       return App.api('api_previewSalesCsv', text, f.name);
@@ -230,20 +374,20 @@ var Acc = (function () {
       var cells = [['الملف', p.fileName], ['الفترة', p.dateFrom + ' → ' + p.dateTo], ['عدد الصفوف', p.totalRows], ['صالحة للاستيراد', p.acceptedRows], ['مكررة (في الملف/مستوردة سابقًا)', p.duplicatesInFile + ' / ' + p.duplicatesExisting],
         ['مرفوضة', p.rejectedRows], ['عدد الفواتير الفريدة', p.receipts], ['إجمالي الكمية', p.quantity], ['إجمالي المبيعات', UI.money(p.grossSales)], ['الخصومات', UI.money(p.discounts)],
         ['صافي المبيعات', UI.money(p.netSales)], ['تكلفة البضاعة', UI.money(p.costOfGoods)], ['إجمالي الربح', UI.money(p.grossProfit)], ['الضرائب', UI.money(p.taxes)], ['سجلات مرتجع', p.refunds]];
-      $('#csvPreviewGrid').innerHTML = cells.map(function (c) { return '<div><b>' + UI.esc(c[0]) + '</b><span class="num">' + UI.esc(c[1]) + '</span></div>'; }).join('');
+      $('#csvPreviewGrid').innerHTML = cells.map(function (c) { return '<div><b>' + UI.esc(t(c[0])) + '</b><span class="num">' + UI.esc(c[1]) + '</span></div>'; }).join('');
       var rej = $('#csvRejected');
-      if (p.rejectedSamples.length) { rej.innerHTML = '<b>سجلات مرفوضة:</b><br>' + p.rejectedSamples.map(UI.esc).join('<br>'); rej.classList.remove('hidden'); } else rej.classList.add('hidden');
+      if (p.rejectedSamples.length) { rej.innerHTML = '<b>' + t('سجلات مرفوضة:') + '</b><br>' + p.rejectedSamples.map(UI.esc).join('<br>'); rej.classList.remove('hidden'); } else rej.classList.add('hidden');
       $('#btnImportCsv').disabled = p.acceptedRows === 0;
       $('#csvPreview').classList.remove('hidden'); $('#csvResult').classList.add('hidden');
     }).catch(UI.err);
   }
   function importCsv() {
-    UI.confirm('اعتماد الاستيراد', 'سيتم حفظ السجلات الصالحة في النظام. السجلات المكررة تُتجاهل تلقائيًا. متابعة؟').then(function (ok) {
+    UI.confirm(t('اعتماد الاستيراد'), t('سيتم حفظ السجلات الصالحة في النظام. السجلات المكررة تُتجاهل تلقائيًا. متابعة؟')).then(function (ok) {
       if (!ok) return;
       return App.api('api_importSalesCsv', csvText, csvName).then(function (r) {
         $('#csvPreview').classList.add('hidden');
         $('#csvResult').className = 'alert ok';
-        $('#csvResult').innerHTML = '<b>تم الاستيراد بنجاح</b><br>السجلات المستوردة: <span class="num">' + r.imported + '</span> · المكررة: <span class="num">' + r.duplicates + '</span> · المرفوضة: <span class="num">' + r.rejected + '</span><br>إجمالي صافي المبيعات المستوردة: <span class="num">' + UI.money(r.netSales) + ' OMR</span> · الفترة: ' + UI.esc(r.dateFrom) + ' → ' + UI.esc(r.dateTo);
+        $('#csvResult').innerHTML = '<b>' + t('تم الاستيراد بنجاح') + '</b><br>' + t('السجلات المستوردة') + ': <span class="num">' + r.imported + '</span> · ' + t('المكررة') + ': <span class="num">' + r.duplicates + '</span> · ' + t('المرفوضة') + ': <span class="num">' + r.rejected + '</span><br>' + t('إجمالي صافي المبيعات المستوردة') + ': <span class="num">' + UI.money(r.netSales) + ' OMR</span> · ' + t('الفترة') + ': ' + UI.esc(r.dateFrom) + ' → ' + UI.esc(r.dateTo);
         $('#csvResult').classList.remove('hidden'); $('#csvFile').value = ''; csvText = '';
         loadImports();
       });
@@ -251,9 +395,9 @@ var Acc = (function () {
   }
   function loadImports() {
     App.api('api_listImports', 20).then(function (r) {
-      $('#importsTable tbody').innerHTML = r.rows.length ? r.rows.map(function (x) {
-        return '<tr><td>' + UI.esc(x['Uploaded At']) + '</td><td>' + UI.esc(x['File Name']) + '</td><td>' + UI.esc(x['Date From']) + ' → ' + UI.esc(x['Date To']) + '</td><td class="n">' + x['Imported Rows'] + '</td><td class="n">' + x['Duplicate Rows'] + '</td><td class="n">' + x['Rejected Rows'] + '</td><td class="n">' + UI.money(x['Net Sales']) + '</td><td>' + UI.badge(x.Status, x.Status === 'OK' ? 'ok' : 'err') + '</td></tr>';
-      }).join('') : '<tr><td colspan="8" class="muted">لا توجد عمليات استيراد بعد.</td></tr>';
+      $('#importsWrap').innerHTML = r.rows.length ? UI.table(['التاريخ', 'الملف', 'الفترة', 'مستورد', 'مكرر', 'مرفوض', 'صافي المبيعات', 'الحالة'].map(t), r.rows.map(function (x) {
+        return [x['Uploaded At'], x['File Name'], x['Date From'] + ' → ' + x['Date To'], x['Imported Rows'], x['Duplicate Rows'], x['Rejected Rows'], UI.money(x['Net Sales']), UI.badge(x.Status, x.Status === 'OK' ? 'ok' : 'err')];
+      })) : '<p class="muted">' + t('لا توجد عمليات استيراد بعد.') + '</p>';
     }).catch(UI.err);
   }
   var COLS = {
@@ -267,7 +411,8 @@ var Acc = (function () {
     var ent = $('#recEntity').value;
     App.api(API[ent], { limit: 200 }).then(function (r) { $('#recordsTableWrap').innerHTML = UI.recordsTable(ent, COLS[ent], r.rows, false); }).catch(UI.err);
   }
-  return { init: init };
+  function rerender() { if (!inited) return; loadImports(); if (!$('#acc-records').classList.contains('hidden')) loadRecords(); }
+  return { init: init, rerender: rerender };
 })();
 
 document.addEventListener('DOMContentLoaded', App.start);

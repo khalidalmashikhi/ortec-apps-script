@@ -5,7 +5,7 @@
 function setupSystem() {
   return withLock_(function () {
     var ss = ss_();
-    var report = { sheets: [], folders: {}, users: [], demoData: false, alreadyDone: false };
+    var report = { sheets: [], folders: {}, users: [], alreadyDone: false };
 
     try { ss.setSpreadsheetTimeZone(WC.TZ); } catch (e) { /* ignore on non-owner */ }
     props_().setProperty('SPREADSHEET_ID', ss.getId());
@@ -15,6 +15,7 @@ function setupSystem() {
     ensureDefaultSettings_();
     report.users = ensureDemoUsers_();
     migrateLegacyDemoUsers_();
+    purgeDemoRows_();
     // Daily e-mail trigger: created here so the report is live right after setup (manager can change it later).
     var st = getAllSettings_();
     if (st.REPORT_ENABLED === 'true' && st.REPORT_EMAIL && !triggerInfo_().exists) {
@@ -25,10 +26,6 @@ function setupSystem() {
     var already = getSetting_('SETUP_DONE') === 'true';
     report.alreadyDone = already;
     if (!already) {
-      if (!hasRealData_()) {
-        createDemoData_();
-        report.demoData = true;
-      }
       setSetting_('SETUP_DONE', 'true', 'system');
       setSetting_('SETUP_VERSION', WC.VERSION, 'system');
     }
@@ -80,7 +77,7 @@ function ensureAllSheets_() {
 function formatSheet_(sh, name) {
   var lastCol = Math.max(sh.getLastColumn(), 1);
   var head = sh.getRange(1, 1, 1, lastCol);
-  head.setFontWeight('bold').setBackground('#4b2e1e').setFontColor('#ffffff');
+  head.setFontWeight('bold').setBackground('#2f4b3e').setFontColor('#f0ead8');
   sh.setFrozenRows(1);
   try { if (!sh.getFilter()) sh.getRange(1, 1, Math.max(sh.getMaxRows(), 2), lastCol).createFilter(); } catch (e) {}
   var headers = headersOf_(sh);
@@ -204,7 +201,7 @@ function resetDemoPasswords() {
   return 'تمت إعادة كلمات المرور التجريبية.';
 }
 
-// ---------------------------------------------------------------- Demo data
+// ---------------------------------------------------------------- Clean start
 
 function hasRealData_() {
   var s = WC.SHEETS;
@@ -213,29 +210,15 @@ function hasRealData_() {
 
 var DEMO_MARK_ = 'DEMO';
 
-function createDemoData_() {
-  var by = 'system-demo';
-  var t = now_();
-  var month = fmtDate_(t, 'yyyy-MM');
-  var d = todayStr_();
-  appendObjects_(WC.SHEETS.PURCHASES, [entryRow_(by, {
-    'Invoice Number': 'DEMO-001', 'Invoice Date': d, Supplier: 'مورد تجريبي', Category: 'بن', Description: 'بيانات تجريبية',
-    Subtotal: 50, Tax: 2.5, Discount: 0, Total: 52.5, 'Paid Amount': 52.5, 'Remaining Amount': 0, 'Payment Method': 'نقد',
-    'Payment Status': 'مدفوعة', 'Is Inventory': 'نعم', Notes: DEMO_MARK_, 'Dedupe Key': 'demo|1'
-  }, 'PUR')]);
-  appendObjects_(WC.SHEETS.EXPENSES, [entryRow_(by, {
-    'Expense Date': d, 'Expense Type': 'كهرباء', Description: 'بيانات تجريبية', Amount: 15, 'Payment Method': 'نقد', Payee: 'الكهرباء', 'Payment Status': 'مدفوع', Notes: DEMO_MARK_
-  }, 'EXP')]);
-  appendObjects_(WC.SHEETS.PAYROLL, [entryRow_(by, {
-    Employee: 'عامل تجريبي', Month: month, 'Basic Salary': 200, Allowance: 20, Overtime: 0, Deduction: 0, Advance: 0, 'Net Salary': 220,
-    'Payment Date': d, 'Payment Method': 'تحويل بنكي', 'Payment Status': 'مدفوع', Notes: DEMO_MARK_
-  }, 'PAY')]);
-  appendObjects_(WC.SHEETS.RENT, [entryRow_(by, {
-    Period: month, Landlord: 'مؤجر تجريبي', Amount: 150, 'Due Date': d, 'Payment Date': d, 'Payment Method': 'تحويل بنكي', Status: 'مدفوع', Notes: DEMO_MARK_
-  }, 'RNT')]);
+/** Earlier builds seeded 4 demo rows; remove them once so the books start empty. */
+function purgeDemoRows_() {
+  if (props_().getProperty('DATA_VERSION') === '2') return;
+  var removed = removeDemoData();
+  props_().setProperty('DATA_VERSION', '2');
+  return removed;
 }
 
-/** Physically removes demo rows (they are demo-only, so a hard delete is acceptable). */
+/** Physically removes demo rows (they were demo-only, so a hard delete is acceptable). */
 function removeDemoData() {
   var removed = 0;
   WC.ENTRY_SHEETS.forEach(function (name) {
@@ -244,8 +227,29 @@ function removeDemoData() {
     rows.sort(function (a, b) { return b._row - a._row; });
     rows.forEach(function (r) { sh.deleteRow(r._row); removed++; });
   });
-  logAudit_({ username: 'system', role: 'system' }, 'REMOVE_DEMO_DATA', 'System', '', 'rows removed: ' + removed, 'OK');
+  if (removed) logAudit_({ username: 'system', role: 'system' }, 'REMOVE_DEMO_DATA', 'System', '', 'rows removed: ' + removed, 'OK');
   return removed;
+}
+
+/**
+ * Manager-only fresh start: clears every financial sheet (sales, imports, purchases, expenses, payroll, rent)
+ * but keeps users, settings, audit and error logs. Drive attachments/reports are left in place.
+ */
+function api_resetFinancialData(token, confirmText) {
+  return apiCall_('api_resetFinancialData', token, [WC.ROLES.MANAGER], function (actor) {
+    if (String(confirmText) !== 'RESET') throw new Error('اكتب RESET للتأكيد.');
+    return withLock_(function () {
+      var counts = {};
+      [WC.SHEETS.SALES_RAW, WC.SHEETS.SALES_IMPORTS].concat(WC.ENTRY_SHEETS).forEach(function (name) {
+        var sh = getSheet_(name);
+        var last = sh.getLastRow();
+        counts[name] = Math.max(last - 1, 0);
+        if (last > 1) sh.deleteRows(2, last - 1);
+      });
+      logAudit_(actor, 'RESET_DATA', 'System', '', JSON.stringify(counts), 'OK');
+      return { ok: true, removed: counts };
+    });
+  });
 }
 
 /** Builds a full entry row with the common audit columns. */

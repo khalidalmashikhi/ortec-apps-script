@@ -30,14 +30,14 @@ function sendDailyReport_(actor, to, date, partialDay) {
     var v = k[label]; var txt = typeof v === 'number' && label.indexOf('عدد') < 0 && label.indexOf('%') < 0 ? money_(v) + ' ' + WC.CURRENCY : String(v);
     return '<tr><td style="padding:6px 10px;border-bottom:1px solid #eee">' + escapeHtml_(label) + '</td><td style="padding:6px 10px;border-bottom:1px solid #eee;font-weight:bold">' + escapeHtml_(txt) + '</td></tr>';
   };
-  var html = '<div dir="rtl" style="font-family:Arial,Tahoma,sans-serif;color:#2b1d14;max-width:560px">' +
-    '<h2 style="color:#4b2e1e;margin:0 0 4px">' + WC.APP_NAME_AR + ' — ' + escapeHtml_(rep.title) + '</h2>' +
-    '<p style="margin:0 0 12px;color:#6b5a4e">' + escapeHtml_(rep.subtitle) + (partialDay ? ' (حتى وقت الإرسال)' : '') + '</p>' +
+  var html = '<div dir="rtl" style="font-family:Arial,Tahoma,sans-serif;color:#1f2d27;max-width:560px">' +
+    '<h2 style="color:#2f4b3e;margin:0 0 4px">' + WC.APP_NAME_AR + ' — ' + escapeHtml_(rep.title) + '</h2>' +
+    '<p style="margin:0 0 12px;color:#6b7a72">' + escapeHtml_(rep.subtitle) + (partialDay ? ' (حتى وقت الإرسال)' : '') + '</p>' +
     '<table style="border-collapse:collapse;width:100%;background:#fff">' +
     ['صافي المبيعات', 'تكلفة البضاعة المباعة', 'مجمل الربح', 'المشتريات المدفوعة', 'المصروفات', 'الرواتب المدفوعة', 'الإيجار المدفوع', 'صافي الربح التشغيلي', 'صافي الحركة النقدية', 'عدد الفواتير', 'متوسط الفاتورة'].map(row).join('') +
     '</table>' +
     (rep.notes.length ? '<p style="margin-top:12px"><b>ملاحظات:</b><br>' + rep.notes.map(escapeHtml_).join('<br>') + '</p>' : '') +
-    '<p style="color:#8a7a6e;font-size:12px;margin-top:16px">التقرير الكامل مرفق بصيغة PDF. رابط الملف: <a href="' + escapeHtml_(pdf.url) + '">' + escapeHtml_(pdf.name) + '</a></p></div>';
+    '<p style="color:#8a9690;font-size:12px;margin-top:16px">التقرير الكامل مرفق بصيغة PDF. رابط الملف: <a href="' + escapeHtml_(pdf.url) + '">' + escapeHtml_(pdf.name) + '</a></p></div>';
   MailApp.sendEmail({
     to: to, subject: WC.APP_NAME_AR + ' — التقرير اليومي ' + date, htmlBody: html, name: WC.APP_NAME, attachments: [pdf.blob]
   });
