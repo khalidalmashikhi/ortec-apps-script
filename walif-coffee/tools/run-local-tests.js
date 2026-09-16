@@ -15,6 +15,7 @@ function test(name, fn) { try { fn(); passed++; console.log('  ✔', name); } ca
 function ok(r, label) { assert.ok(r && r.ok, (label || 'api') + ' failed: ' + (r && r.error)); return r; }
 const csv = fs.readFileSync(path.join(__dirname, '..', 'tests', 'sample-loyverse.csv'), 'utf8');
 const csvBom = '\uFEFF' + csv;
+S.ss.id = G.WC.WALIF_SHEET_ID; // this suite runs as the original Walif Coffee installation (identity gets seeded)
 const TODAY = G.todayStr_(); // demo rows are dated today (Muscat), so range assertions run up to today
 
 console.log('\n1-2. setupSystem()');
@@ -254,6 +255,18 @@ test('trigger job runs (previous day) and logs; failure goes to Error_Log withou
   const errs = S.ss.getSheetByName('Error_Log'); assert.ok(errs.data.some(r => /smtp down/.test(String(r[3]))));
   assert.ok(S.ss.getSheetByName('Audit_Log').data.some(r => r[3] === 'SEND_EMAIL' && r[7] === 'FAILED'));
   const e = ok(G.api_getErrorLog(mgr.token, 10)); assert.ok(e.rows.length >= 1);
+});
+
+console.log('\nwhite-label branding');
+test('generic defaults, Walif identity seeded only on the Walif sheet, brand editable by manager', () => {
+  assert.strictEqual(G.WC.APP_NAME, 'Cafe Books'); assert.strictEqual(G.WC.DEFAULT_SETTINGS.BRAND_NAME.value, 'Cafe Books'); assert.strictEqual(G.WC.DEFAULT_SETTINGS.REPORT_EMAIL.value, '');
+  assert.strictEqual(G.brand_().name, 'Walif Coffee', 'seeded because this is the Walif sheet'); assert.strictEqual(G.brand_().shortAr, 'وليف'); assert.strictEqual(G.brand_().slug, 'Walif-Coffee');
+  assert.ok(!G.api_saveBrand(acc.token, { name: 'x', nameAr: 'y', primary: '#000000', cream: '#ffffff' }).ok, 'accountant forbidden');
+  assert.ok(!G.api_saveBrand(mgr.token, { name: 'x', nameAr: 'y', primary: 'green', cream: '#ffffff' }).ok, 'bad colour rejected');
+  const r = ok(G.api_saveBrand(mgr.token, { name: 'Bean Bar', nameAr: 'بين بار', short: 'bean', shortAr: 'بين', tagline: 'coffee', primary: '#123456', cream: '#FAFAFA', currency: 'aed', logoUrl: '' }));
+  assert.strictEqual(r.brand.short, 'BEAN'); assert.strictEqual(r.brand.currency, 'AED'); assert.strictEqual(r.brand.primary, '#123456');
+  const pdf = ok(G.api_generateReportPdf(mgr.token, 'daily', TODAY)); assert.ok(/^Bean-Bar-Daily-Report/.test(pdf.name), pdf.name);
+  ok(G.api_saveBrand(mgr.token, { name: 'Walif Coffee', nameAr: 'وليف كوفي', short: 'WALIF', shortAr: 'وليف', tagline: 'YOUR LOCAL EATERY', primary: '#2f4b3e', cream: '#f0ead8', currency: 'OMR' }));
 });
 
 console.log('\nsecurity: passwords, sessions, logs');

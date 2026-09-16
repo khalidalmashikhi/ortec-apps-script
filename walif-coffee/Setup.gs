@@ -11,8 +11,9 @@ function setupSystem() {
     props_().setProperty('SPREADSHEET_ID', ss.getId());
 
     report.sheets = ensureAllSheets_();
-    report.folders = ensureFolders_();
     ensureDefaultSettings_();
+    seedWalifBrand_();
+    report.folders = ensureFolders_();
     report.users = ensureDemoUsers_();
     migrateLegacyDemoUsers_();
     purgeDemoRows_();
@@ -77,7 +78,7 @@ function ensureAllSheets_() {
 function formatSheet_(sh, name) {
   var lastCol = Math.max(sh.getLastColumn(), 1);
   var head = sh.getRange(1, 1, 1, lastCol);
-  head.setFontWeight('bold').setBackground('#2f4b3e').setFontColor('#f0ead8');
+  head.setFontWeight('bold').setBackground(brand_().primary).setFontColor(brand_().cream);
   sh.setFrozenRows(1);
   try { if (!sh.getFilter()) sh.getRange(1, 1, Math.max(sh.getMaxRows(), 2), lastCol).createFilter(); } catch (e) {}
   var headers = headersOf_(sh);
@@ -101,7 +102,7 @@ function formatSheet_(sh, name) {
 // ---------------------------------------------------------------- Drive
 
 function ensureFolders_() {
-  var root = getOrCreateFolder_(null, WC.ROOT_FOLDER, 'ROOT_FOLDER_ID');
+  var root = getOrCreateFolder_(null, brand_().name + WC.ROOT_FOLDER_SUFFIX, 'ROOT_FOLDER_ID');
   var invoices = getOrCreateFolder_(root, 'Invoices', 'INVOICES_FOLDER_ID');
   var reports = getOrCreateFolder_(root, 'Reports', 'REPORTS_FOLDER_ID');
   return { root: root.getId(), invoices: invoices.getId(), reports: reports.getId() };
@@ -157,6 +158,17 @@ function setSetting_(key, value, by) {
   }
   var def = WC.DEFAULT_SETTINGS[key] || { desc: '' };
   appendObjects_(WC.SHEETS.SETTINGS, [{ Key: key, Value: String(value), Description: def.desc, 'Updated At': now_(), 'Updated By': by || '' }]);
+}
+
+/** The first customer (Walif Coffee) keeps its identity: seeded once, only on that specific spreadsheet. */
+function seedWalifBrand_() {
+  if (props_().getProperty('BRAND_SEEDED') === '1') return;
+  if (ss_().getId() === WC.WALIF_SHEET_ID) {
+    var v = { BRAND_NAME: 'Walif Coffee', BRAND_NAME_AR: 'وليف كوفي', BRAND_SHORT: 'WALIF', BRAND_SHORT_AR: 'وليف', BRAND_TAGLINE: 'YOUR LOCAL EATERY', BRAND_PRIMARY: '#2f4b3e', BRAND_CREAM: '#f0ead8', CURRENCY: 'OMR' };
+    Object.keys(v).forEach(function (k) { setSetting_(k, v[k], 'system'); });
+    if (!getSetting_('REPORT_EMAIL')) { setSetting_('REPORT_EMAIL', 'khalid98115159@gmail.com', 'system'); setSetting_('REPORT_ENABLED', 'true', 'system'); }
+  }
+  props_().setProperty('BRAND_SEEDED', '1');
 }
 
 // ---------------------------------------------------------------- Users

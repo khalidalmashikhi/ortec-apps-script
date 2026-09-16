@@ -22,7 +22,7 @@ function scriptApi_(method, path, payload) {
 
 /** Creates a version + web-app deployment (or updates the existing one) and returns the /exec URL. */
 function deployWebApp() {
-  var desc = WC.APP_NAME + ' v' + WC.VERSION + ' ' + fmtDateTime_(now_());
+  var desc = brand_().name + ' v' + WC.VERSION + ' ' + fmtDateTime_(now_());
   var version = scriptApi_('post', '/versions', { description: desc });
   var p = props_();
   var depId = p.getProperty('DEPLOYMENT_ID');

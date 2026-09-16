@@ -115,6 +115,10 @@ var I18N_EN = {
   'أرشيف الإيصالات (بالصور)': 'Receipts archive (with images)', 'أرشيف الإيصالات': 'Receipts archive', 'الإيصالات': 'Receipts', 'الجهة': 'Party', 'مشتريات': 'Purchase', 'عدد الإيصالات المصورة': 'Receipts with attachment', 'إجمالي مبالغها': 'Their total amount',
   'لا توجد إيصالات مرفقة في هذه الفترة.': 'No receipts with attachments in this period.', 'صور الإيصالات تُدرج داخل ملف PDF عند التنزيل.': 'Receipt images are embedded in the PDF when downloaded.', 'صور الإيصالات': 'Receipt images',
   'إيصالات بدون صورة داخل الملف (PDF أو مرفق غير صالح)': 'Receipts without an embedded image (PDF or unreadable attachment)',
+  'هوية المحل (الاسم والشعار والألوان)': 'Shop identity (name, logo, colours)', 'اسم المحل بالإنجليزية': 'Shop name (English)', 'اسم المحل بالعربية': 'Shop name (Arabic)', 'كلمة الشعار (لاتيني)': 'Logo word (Latin)', 'كلمة الشعار (عربي)': 'Logo word (Arabic)',
+  'السطر الصغير تحت الشعار': 'Small line under the logo', 'رمز العملة': 'Currency code', 'اللون الأساسي': 'Primary colour', 'اللون الفاتح': 'Light colour', 'رابط صورة شعار (اختياري، يحل محل الشعار النصي)': 'Logo image URL (optional, replaces the text logo)',
+  'تُطبَّق الهوية على صفحة الدخول والشريط العلوي وتقارير PDF والبريد ورؤوس جداول Google Sheets الجديدة.': 'The identity applies to the login page, top bar, PDF reports, e-mails and new Google Sheets headers.',
+  'حفظ الهوية': 'Save identity', 'تم حفظ الهوية': 'Identity saved', 'اسم المحل مطلوب بالعربية والإنجليزية.': 'Shop name is required in Arabic and English.', 'اللون يجب أن يكون بصيغة #RRGGBB.': 'Colour must be in #RRGGBB format.', 'رابط الشعار يجب أن يبدأ بـ https://': 'Logo URL must start with https://',
   'اكتب RESET للتأكيد.': 'Type RESET to confirm.', 'دور غير صالح.': 'Invalid role.', 'غير مدعوم.': 'Not supported.', 'المشروع غير مرتبط بملف Google Sheets.': 'The project is not bound to a Google Sheet.',
   'فرق بين مجمل الربح المحسوب ومجمل ربح Loyverse': 'Difference between computed gross profit and Loyverse gross profit', 'مشتريات غير مدفوعة (متبقية)': 'Unpaid purchases (remaining)', 'مصروفات غير مدفوعة': 'Unpaid expenses',
   'أخطاء نظام غير معالجة خلال الفترة': 'Unresolved system errors in the period', 'عمليات استيراد فاشلة خلال الفترة': 'Failed imports in the period', 'تاريخ التقرير': 'Report date', 'نوع المرفق غير مسموح (PDF, JPG, PNG فقط).': 'Attachment type not allowed (PDF, JPG, PNG only).', 'حجم المرفق يتجاوز': 'Attachment exceeds'
@@ -136,7 +140,32 @@ function setLang(l) {
   document.documentElement.lang = LANG; document.documentElement.dir = LANG === 'ar' ? 'rtl' : 'ltr';
   document.querySelectorAll('[data-i18n]').forEach(function (el) { if (!el.dataset.i18n) el.dataset.i18n = el.textContent.trim(); el.textContent = t(el.dataset.i18n); });
   document.querySelectorAll('.lang-btn').forEach(function (b) { b.textContent = LANG === 'ar' ? 'English' : 'العربية'; });
+  if (typeof applyBrand === 'function') applyBrand();
   if (window.App && App.boot) { UI.fillLists(document); if (App.user) { $('#whoRole').textContent = App.user.role === 'manager' ? t('مدير') : t('محاسب'); } if (App.user && App.user.role === 'manager' && window.Mgr) Mgr.rerender(); if (App.user && App.user.role !== 'manager' && window.Acc) Acc.rerender(); }
+}
+
+/* ===================== Branding (white-label): colours, logo words, names ===================== */
+var BRAND = window.BRAND || { name: 'Cafe Books', nameAr: 'دفاتر الكافيه', short: 'CAFE', shortAr: '', tagline: '', primary: '#2f4b3e', cream: '#f0ead8', logoUrl: '', currency: 'OMR' };
+function shade(hex, pct) { // pct>0 lighten toward white, <0 darken toward black
+  var n = parseInt(hex.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255, tgt = pct > 0 ? 255 : 0, k = Math.abs(pct);
+  var f = function (c) { return Math.round(c + (tgt - c) * k); };
+  return '#' + [f(r), f(g), f(b)].map(function (c) { return ('0' + c.toString(16)).slice(-2); }).join('');
+}
+function applyBrand(b) {
+  if (b) BRAND = b;
+  var st = document.documentElement.style;
+  st.setProperty('--brand', BRAND.primary); st.setProperty('--brand-2', shade(BRAND.primary, .12)); st.setProperty('--brand-light', shade(BRAND.primary, .3)); st.setProperty('--brand-dark', shade(BRAND.primary, -.2));
+  st.setProperty('--cream', BRAND.cream); st.setProperty('--cream-2', shade(BRAND.cream, -.07)); st.setProperty('--paper', shade(BRAND.cream, .55));
+  document.querySelectorAll('[data-brand]').forEach(function (el) {
+    var k = el.dataset.brand, v = k === 'name' ? (LANG === 'ar' ? BRAND.nameAr : BRAND.name) : (BRAND[k] || '');
+    el.textContent = v;
+    if (el.tagName.toLowerCase() === 'text') { el.classList.toggle('hidden', !v); if (k === 'short' && v.length > 5) el.setAttribute('font-size', String(Math.max(34, Math.round(78 * 5 / v.length)))); }
+  });
+  document.title = (LANG === 'ar' ? BRAND.nameAr : BRAND.name) + ' | ' + (LANG === 'ar' ? BRAND.name : BRAND.nameAr);
+  var useImg = !!BRAND.logoUrl;
+  var li = $('#loginLogoImg'), ls = document.querySelector('.brand-svg'), ti = $('#tbLogoImg'), ts = document.querySelector('.topbar .brand svg');
+  if (li) { li.src = useImg ? BRAND.logoUrl : ''; li.classList.toggle('hidden', !useImg); } if (ls) ls.classList.toggle('hidden', useImg);
+  if (ti) { ti.src = useImg ? BRAND.logoUrl : ''; ti.classList.toggle('hidden', !useImg); } if (ts) ts.classList.toggle('hidden', useImg);
 }
 
 /* ===================== Core: helpers, API bridge, UI primitives ===================== */
@@ -276,7 +305,7 @@ var App = {
   },
   start: function () {
     var saved = 'ar'; try { saved = localStorage.getItem('wc_lang') || 'ar'; } catch (e) {}
-    setLang(saved);
+    applyBrand(); setLang(saved);
     document.querySelectorAll('.lang-btn').forEach(function (b) { b.addEventListener('click', function () { setLang(LANG === 'ar' ? 'en' : 'ar'); }); });
     try { App.token = sessionStorage.getItem('wc_token'); } catch (e) {}
     $('#loginForm').addEventListener('submit', App.login);
@@ -305,6 +334,7 @@ var App = {
   },
   enter: function (boot) {
     App.boot = boot; App.user = boot.user; App.today = boot.today;
+    if (boot.brand) applyBrand(boot.brand);
     $('#whoName').textContent = boot.user.displayName; $('#whoRole').textContent = boot.user.role === 'manager' ? t('مدير') : t('محاسب');
     $('#demoWarning').classList.toggle('hidden', !(boot.demoPasswordsActive && boot.user.role === 'manager'));
     $('#view-login').classList.add('hidden'); $('#view-app').classList.remove('hidden');

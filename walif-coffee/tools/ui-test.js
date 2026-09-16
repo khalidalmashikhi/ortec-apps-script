@@ -145,7 +145,7 @@ const OUT = path.join(__dirname, '..', 'tests', 'screenshots'); fs.mkdirSync(OUT
     await page.click('#btnReportView'); await page.waitForSelector('#reportOut .card'); if (!(await page.locator('#reportOut').innerText()).includes('صافي الربح التشغيلي')) throw new Error('report view');
     await page.selectOption('#rType', 'receipts'); await page.click('#btnReportView'); await page.waitForFunction(() => /📎/.test(document.querySelector('#reportOut').innerText));
     await page.selectOption('#rType', 'pnl'); await page.click('#btnReportView'); await page.waitForFunction(() => /صافي الربح التشغيلي/.test(document.querySelector('#reportOut').innerText));
-    const dl = page.waitForEvent('download'); await page.click('#btnReportPdf'); const d = await dl; if (!/Walif-Coffee-PnL-Report/.test(d.suggestedFilename())) throw new Error(d.suggestedFilename());
+    const dl = page.waitForEvent('download'); await page.click('#btnReportPdf'); const d = await dl; if (!/-PnL-Report-/.test(d.suggestedFilename())) throw new Error(d.suggestedFilename());
     await page.screenshot({ path: OUT + '/06-report.png', fullPage: true });
   });
   await step('settings: save e-mail + trigger, test send, change password', async () => {
@@ -157,6 +157,17 @@ const OUT = path.join(__dirname, '..', 'tests', 'screenshots'); fs.mkdirSync(OUT
     const st = await (await fetch(BASE + '/__state')).json(); if (st.mails < 1 || st.triggers !== 1) throw new Error(JSON.stringify(st));
     await page.selectOption('#pwUser', 'ac'); await page.fill('#passwordForm [name=newPassword]', 'secret99'); await page.fill('#passwordForm [name=confirm]', 'secret99'); await page.click('#passwordForm button[type=submit]'); await page.waitForSelector('.toast.ok');
     await page.screenshot({ path: OUT + '/07-settings.png', fullPage: true });
+  });
+  await step('brand form re-skins the app live (name, logo word, colours)', async () => {
+    await page.click('#mgrTabs button[data-tab=mgr-settings]'); await page.waitForSelector('#brandForm [name=name]');
+    await page.fill('#brandForm [name=name]', 'Bean Bar'); await page.fill('#brandForm [name=nameAr]', 'بين بار'); await page.fill('#brandForm [name=short]', 'BEAN');
+    await page.fill('#brandForm [name=primary]', '#5a2d0c'); await page.click('#brandForm button[type=submit]');
+    await page.waitForFunction(() => document.querySelector('.topbar [data-brand=name]').textContent === 'بين بار', null, { timeout: 10000 });
+    if ((await page.locator('.topbar text[data-brand=short]').textContent()) !== 'BEAN') throw new Error('logo word not applied');
+    const c = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--brand').trim()); if (c !== '#5a2d0c') throw new Error('colour not applied: ' + c);
+    await page.screenshot({ path: OUT + '/09-rebranded.png' });
+    await page.fill('#brandForm [name=name]', 'Walif Coffee'); await page.fill('#brandForm [name=nameAr]', 'وليف كوفي'); await page.fill('#brandForm [name=short]', 'WALIF'); await page.fill('#brandForm [name=primary]', '#2f4b3e');
+    await page.click('#brandForm button[type=submit]'); await page.waitForFunction(() => document.querySelector('.topbar [data-brand=name]').textContent === 'وليف كوفي', null, { timeout: 10000 });
   });
   await step('fresh start: reset financial data with typed confirmation', async () => {
     await page.click('#mgrTabs button[data-tab=mgr-settings]'); await page.waitForSelector('#btnResetData');

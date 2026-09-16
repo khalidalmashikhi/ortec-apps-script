@@ -4,3 +4,4 @@ tests/**
 .clasp.json
 .claspignore
 installer/**
+.clasp.template.json

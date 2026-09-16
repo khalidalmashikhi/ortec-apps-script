@@ -11,14 +11,17 @@ function doGet(e) {
   // First visit by the owner initialises everything (sheets, folders, users, trigger) automatically.
   if (props_().getProperty('SETUP_DONE') !== 'true') {
     try { setupSystem(); } catch (err) { logError_('doGet.setupSystem', null, err, ''); }
-  } else if (props_().getProperty('USERS_VERSION') !== WC.USERS_VERSION) {
-    try { withLock_(migrateLegacyDemoUsers_); } catch (err) { logError_('doGet.migrateUsers', null, err, ''); }
+  } else {
+    if (props_().getProperty('USERS_VERSION') !== WC.USERS_VERSION) { try { withLock_(migrateLegacyDemoUsers_); } catch (err) { logError_('doGet.migrateUsers', null, err, ''); } }
+    if (props_().getProperty('BRAND_SEEDED') !== '1') { try { withLock_(function () { ensureDefaultSettings_(); seedWalifBrand_(); }); } catch (err) { logError_('doGet.seedBrand', null, err, ''); } }
   }
+  var b = brand_();
   var t = HtmlService.createTemplateFromFile('Index');
-  t.appName = WC.APP_NAME;
-  t.appNameAr = WC.APP_NAME_AR;
+  t.appName = b.name;
+  t.appNameAr = b.nameAr;
+  t.brandJson = JSON.stringify(b);
   return t.evaluate()
-    .setTitle(WC.APP_NAME_AR + ' | ' + WC.APP_NAME)
+    .setTitle(b.nameAr + ' | ' + b.name)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1, maximum-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DEFAULT);
 }
@@ -60,7 +63,8 @@ function api_bootstrap(token) {
         purchasePaymentStatus: WC.PURCHASE_PAYMENT_STATUS, simplePaymentStatus: WC.SIMPLE_PAYMENT_STATUS, rentStatus: WC.RENT_STATUS
       },
       limits: { attachmentBytes: WC.MAX_ATTACHMENT_BYTES, attachmentExt: WC.ALLOWED_ATTACHMENT_EXT },
-      demoPasswordsActive: getSetting_('DEMO_PASSWORDS_ACTIVE') === 'true'
+      demoPasswordsActive: getSetting_('DEMO_PASSWORDS_ACTIVE') === 'true',
+      brand: brand_()
     };
     if (actor.role === WC.ROLES.MANAGER) out.settings = publicSettings_();
     return out;

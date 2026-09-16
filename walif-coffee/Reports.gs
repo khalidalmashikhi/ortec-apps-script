@@ -130,7 +130,7 @@ function collectReceipts_(fin) {
 function appendReceiptImages_(body, rtl, receipts) {
   var skipped = [];
   receipts.slice(0, RECEIPTS_MAX_IMAGES_).forEach(function (r, i) {
-    var caption = (i + 1) + '. ' + r.date + ' — ' + r.kind + ' — ' + r.party + ' — ' + money_(r.amount) + ' ' + WC.CURRENCY + (r.description ? ' — ' + r.description : '');
+    var caption = (i + 1) + '. ' + r.date + ' — ' + r.kind + ' — ' + r.party + ' — ' + money_(r.amount) + ' ' + brand_().currency + (r.description ? ' — ' + r.description : '');
     rtl(body.appendParagraph(caption)).setBold(true);
     try {
       var file = DriveApp.getFileById(r.fileId);
@@ -157,7 +157,7 @@ function appendReceiptImages_(body, rtl, receipts) {
 function reportFileName_(rep) {
   var typeName = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly', custom: 'Custom', purchases: 'Purchases', expenses: 'Expenses', payroll: 'Payroll', rent: 'Rent', pnl: 'PnL', cashflow: 'CashFlow', receipts: 'Receipts' }[rep.type];
   var period = rep.range.from === rep.range.to ? rep.range.from : rep.range.from + '_to_' + rep.range.to;
-  return 'Walif-Coffee-' + typeName + '-Report-' + period + '.pdf';
+  return brand_().slug + '-' + typeName + '-Report-' + period + '.pdf';
 }
 
 function renderReportPdf_(rep) {
@@ -166,10 +166,11 @@ function renderReportPdf_(rep) {
   var body = doc.getBody();
   var rtl = function (p) { try { p.setLeftToRight(false); } catch (e) {} p.setAlignment(DocumentApp.HorizontalAlignment.RIGHT); return p; };
 
-  rtl(body.appendParagraph(WC.APP_NAME + ' / ' + WC.APP_NAME_AR)).setHeading(DocumentApp.ParagraphHeading.TITLE);
+  var b = brand_();
+  rtl(body.appendParagraph(b.name + ' / ' + b.nameAr)).setHeading(DocumentApp.ParagraphHeading.TITLE);
   rtl(body.appendParagraph(rep.title)).setHeading(DocumentApp.ParagraphHeading.HEADING1);
   rtl(body.appendParagraph(rep.subtitle));
-  rtl(body.appendParagraph('أُنشئ في: ' + fmtDateTime_(now_()) + ' (توقيت مسقط) — العملة: ' + WC.CURRENCY)).setItalic(true);
+  rtl(body.appendParagraph('أُنشئ في: ' + fmtDateTime_(now_()) + ' (توقيت مسقط) — العملة: ' + b.currency)).setItalic(true);
 
   if (rep.kpis.length) {
     rtl(body.appendParagraph('المؤشرات')).setHeading(DocumentApp.ParagraphHeading.HEADING2);
@@ -207,7 +208,7 @@ function styleTable_(table) {
   try {
     table.setBorderWidth(0.5);
     var head = table.getRow(0);
-    for (var c = 0; c < head.getNumCells(); c++) head.getCell(c).setBackgroundColor('#2f4b3e').getChild(0).asParagraph().setForegroundColor('#f0ead8').setBold(true);
+    for (var c = 0; c < head.getNumCells(); c++) head.getCell(c).setBackgroundColor(brand_().primary).getChild(0).asParagraph().setForegroundColor(brand_().cream).setBold(true);
     for (var r = 0; r < table.getNumRows(); r++) for (var k = 0; k < table.getRow(r).getNumCells(); k++) {
       var p = table.getRow(r).getCell(k).getChild(0).asParagraph();
       try { p.setLeftToRight(false); } catch (e) {}

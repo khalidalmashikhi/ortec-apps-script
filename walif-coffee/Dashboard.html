@@ -136,6 +136,22 @@
           <button class="btn ghost" type="button" id="btnRebuildTrigger" data-i18n>إعادة إنشاء Trigger</button>
         </div>
       </form>
+      <form class="card" id="brandForm">
+        <h2 data-i18n>هوية المحل (الاسم والشعار والألوان)</h2>
+        <div class="grid cols-2">
+          <div class="field"><label data-i18n>اسم المحل بالإنجليزية</label><input name="name" maxlength="60" dir="ltr" required></div>
+          <div class="field"><label data-i18n>اسم المحل بالعربية</label><input name="nameAr" maxlength="60" required></div>
+          <div class="field"><label data-i18n>كلمة الشعار (لاتيني)</label><input name="short" maxlength="14" dir="ltr" placeholder="WALIF"></div>
+          <div class="field"><label data-i18n>كلمة الشعار (عربي)</label><input name="shortAr" maxlength="14" placeholder="وليف"></div>
+          <div class="field"><label data-i18n>السطر الصغير تحت الشعار</label><input name="tagline" maxlength="40" dir="ltr" placeholder="YOUR LOCAL EATERY"></div>
+          <div class="field"><label data-i18n>رمز العملة</label><input name="currency" maxlength="8" dir="ltr" placeholder="OMR"></div>
+          <div class="field"><label data-i18n>اللون الأساسي</label><input name="primary" type="color" value="#2f4b3e" style="height:44px;padding:.2rem"></div>
+          <div class="field"><label data-i18n>اللون الفاتح</label><input name="cream" type="color" value="#f0ead8" style="height:44px;padding:.2rem"></div>
+        </div>
+        <div class="field"><label data-i18n>رابط صورة شعار (اختياري، يحل محل الشعار النصي)</label><input name="logoUrl" type="url" dir="ltr" placeholder="https://..."></div>
+        <p class="muted" data-i18n>تُطبَّق الهوية على صفحة الدخول والشريط العلوي وتقارير PDF والبريد ورؤوس جداول Google Sheets الجديدة.</p>
+        <button class="btn" type="submit" data-i18n>حفظ الهوية</button>
+      </form>
       <div class="card danger-zone">
         <h3 data-i18n>بداية جديدة (تصفير البيانات المالية)</h3>
         <p class="muted" data-i18n>يحذف كل المبيعات المستوردة والمشتريات والمصروفات والرواتب والإيجارات نهائيًا، ويُبقي المستخدمين والإعدادات وسجل العمليات. استخدمه مرة واحدة قبل رفع أول ملف حقيقي.</p>
@@ -200,6 +216,7 @@ var Mgr = (function () {
     $('#btnTestEmail').addEventListener('click', testEmail);
     $('#btnRebuildTrigger').addEventListener('click', rebuildTrigger);
     $('#btnResetData').addEventListener('click', resetData);
+    $('#brandForm').addEventListener('submit', saveBrand);
     $('#passwordForm').addEventListener('submit', changePassword);
     $('#btnLoadAudit').addEventListener('click', loadAudit);
     $('#btnLoadErrors').addEventListener('click', loadErrors);
@@ -391,8 +408,18 @@ var Mgr = (function () {
   }
 
   // ---- settings
+  function fillBrand(b, raw) {
+    var f = $('#brandForm'); if (!b) return;
+    f.name.value = b.name; f.nameAr.value = b.nameAr; f.short.value = b.short; f.shortAr.value = b.shortAr || ''; f.tagline.value = b.tagline || ''; f.currency.value = b.currency;
+    f.primary.value = b.primary; f.cream.value = b.cream; f.logoUrl.value = (raw && raw.logoUrl) || b.logoUrl || '';
+  }
+  function saveBrand(e) {
+    e.preventDefault();
+    App.api('api_saveBrand', UI.formData($('#brandForm'))).then(function (r) { applyBrand(r.brand); fillBrand(r.brand, { logoUrl: r.brand.logoUrl }); UI.toast(t('تم حفظ الهوية'), 'ok'); }).catch(UI.err);
+  }
   function fillSettings(s) {
     var f = $('#settingsForm');
+    fillBrand(s.brand, s.brandRaw);
     f.reportEmail.value = s.reportEmail || ''; f.reportHour.value = s.reportHour; f.reportMode.value = s.reportMode; f.reportEnabled.checked = !!s.reportEnabled;
     $('#triggerState').textContent = s.trigger && s.trigger.exists ? t('✅ المشغل اليومي (Trigger) موجود.') : t('ℹ️ لا يوجد مشغل يومي حاليًا. فعّل الإرسال واحفظ الإعدادات أو اضغط إعادة إنشاء Trigger.');
     $('#demoWarning').classList.toggle('hidden', !s.demoPasswordsActive);

@@ -14,6 +14,21 @@ function ss_() {
 
 function props_() { return PropertiesService.getScriptProperties(); }
 
+/** Effective branding: Settings (BRAND_*) over product defaults. Safe to call before setup (falls back to defaults). */
+function brand_() {
+  var s = {};
+  try { s = getAllSettings_(); } catch (e) { Object.keys(WC.DEFAULT_SETTINGS).forEach(function (k) { s[k] = WC.DEFAULT_SETTINGS[k].value; }); }
+  var hex = function (v, d) { return /^#[0-9a-fA-F]{6}$/.test(String(v || '')) ? String(v) : d; };
+  var name = cleanText_(s.BRAND_NAME, 60) || WC.APP_NAME;
+  return {
+    name: name, nameAr: cleanText_(s.BRAND_NAME_AR, 60) || WC.APP_NAME_AR,
+    short: cleanText_(s.BRAND_SHORT, 14) || name.split(' ')[0].toUpperCase(), shortAr: cleanText_(s.BRAND_SHORT_AR, 14) || '',
+    tagline: cleanText_(s.BRAND_TAGLINE, 40), primary: hex(s.BRAND_PRIMARY, '#2f4b3e'), cream: hex(s.BRAND_CREAM, '#f0ead8'),
+    logoUrl: /^https:\/\//.test(String(s.BRAND_LOGO_URL || '')) ? cleanText_(s.BRAND_LOGO_URL, 500) : '',
+    currency: cleanText_(s.CURRENCY, 8) || 'OMR', slug: name.replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'Cafe-Books'
+  };
+}
+
 function now_() { return new Date(); }
 
 function fmtDate_(d, pattern) {

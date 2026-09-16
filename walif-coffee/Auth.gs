@@ -124,7 +124,7 @@ function api_login(username, password) {
     user: { username: username, role: String(user.Role), displayName: String(user['Display Name'] || username),
       mustChangePassword: String(user['Must Change Password']) === 'TRUE' },
     demoPasswordsActive: getSetting_('DEMO_PASSWORDS_ACTIVE') === 'true',
-    app: { name: WC.APP_NAME, nameAr: WC.APP_NAME_AR, version: WC.VERSION, currency: WC.CURRENCY }
+    app: { version: WC.VERSION, brand: brand_() }
   };
 }
 

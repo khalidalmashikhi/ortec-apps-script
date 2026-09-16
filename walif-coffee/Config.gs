@@ -3,9 +3,12 @@
  * Central configuration. Every other file reads from WC.
  */
 var WC = {
-  APP_NAME: 'Walif Coffee',
-  APP_NAME_AR: 'وليف كوفي',
-  VERSION: '1.0.0',
+  /** Product (white-label) identity. Per-customer branding lives in Settings (BRAND_*), see brand_(). */
+  APP_NAME: 'Cafe Books',
+  APP_NAME_AR: 'دفاتر الكافيه',
+  VERSION: '1.3.0',
+  /** The original Walif Coffee installation gets its branding seeded automatically (see seedWalifBrand_). */
+  WALIF_SHEET_ID: '1HfsBDCDY5Wyy0A18fnG_VGYO0xYC9tjMMOkQN9e2nxQ',
   TZ: 'Asia/Muscat',
   CURRENCY: 'OMR',
   DECIMALS: 3,
@@ -14,7 +17,7 @@ var WC = {
   ALLOWED_ATTACHMENT_TYPES: ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'],
   ALLOWED_ATTACHMENT_EXT: ['pdf', 'jpg', 'jpeg', 'png'],
   MAX_CSV_CHARS: 8 * 1024 * 1024,
-  ROOT_FOLDER: 'Walif Coffee Accounting',
+  ROOT_FOLDER_SUFFIX: ' Accounting',
   ROLES: { MANAGER: 'manager', ACCOUNTANT: 'accountant' },
   STATUS: { ACTIVE: 'ACTIVE', CANCELLED: 'CANCELLED' },
 
@@ -72,9 +75,18 @@ var WC = {
   RENT_STATUS: ['مدفوع', 'مستحق', 'متأخر'],
 
   DEFAULT_SETTINGS: {
-    REPORT_EMAIL: { value: 'khalid98115159@gmail.com', desc: 'بريد مستلم التقرير اليومي' },
+    REPORT_EMAIL: { value: '', desc: 'بريد مستلم التقرير اليومي' },
     REPORT_HOUR: { value: '8', desc: 'ساعة إرسال التقرير اليومي (0-23) بتوقيت مسقط' },
-    REPORT_ENABLED: { value: 'true', desc: 'تفعيل الإرسال اليومي (true/false)' },
+    REPORT_ENABLED: { value: 'false', desc: 'تفعيل الإرسال اليومي (true/false)' },
+    BRAND_NAME: { value: 'Cafe Books', desc: 'اسم المحل بالإنجليزية' },
+    BRAND_NAME_AR: { value: 'دفاتر الكافيه', desc: 'اسم المحل بالعربية' },
+    BRAND_SHORT: { value: 'CAFE', desc: 'الكلمة الكبيرة في الشعار (لاتيني)' },
+    BRAND_SHORT_AR: { value: 'كافيه', desc: 'الكلمة العربية في الشعار' },
+    BRAND_TAGLINE: { value: 'CAFE ACCOUNTING', desc: 'السطر الصغير تحت الشعار' },
+    BRAND_PRIMARY: { value: '#2f4b3e', desc: 'اللون الأساسي (hex)' },
+    BRAND_CREAM: { value: '#f0ead8', desc: 'اللون الفاتح (hex)' },
+    BRAND_LOGO_URL: { value: '', desc: 'رابط صورة شعار (اختياري، يحل محل الشعار النصي)' },
+    CURRENCY: { value: 'OMR', desc: 'رمز العملة' },
     REPORT_MODE: { value: 'previous_day', desc: 'previous_day = تقرير اليوم السابق كاملًا، today = تقرير اليوم حتى وقت الإرسال' },
     DEMO_PASSWORDS_ACTIVE: { value: 'true', desc: 'هل ما زالت كلمات المرور التجريبية مستخدمة' },
     SETUP_DONE: { value: 'false', desc: 'هل تمت التهيئة' },

@@ -15,7 +15,8 @@ const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
 function assemble() {
   let html = read('Index.html');
   html = html.replace(/<\?!= include\('([A-Za-z]+)'\) \?>/g, (m, n) => read(n + '.html'));
-  html = html.replace(/<\?= appNameAr \?>/g, G.WC.APP_NAME_AR).replace(/<\?= appName \?>/g, G.WC.APP_NAME);
+  const b = G.brand_();
+  html = html.replace(/<\?= appNameAr \?>/g, b.nameAr).replace(/<\?= appName \?>/g, b.name).replace('<?!= brandJson ?>', JSON.stringify(b));
   const shim = `<script>
   window.google = window.google || {};
   google.script = { run: null };
