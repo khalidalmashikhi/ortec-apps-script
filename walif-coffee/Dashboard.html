@@ -106,7 +106,7 @@
         <select id="rType">
           <option value="daily" data-i18n>تقرير يومي</option><option value="weekly" data-i18n>تقرير أسبوعي</option><option value="monthly" data-i18n>تقرير شهري</option>
           <option value="custom" data-i18n>تقرير فترة مخصصة</option><option value="purchases" data-i18n>تقرير مشتريات</option><option value="expenses" data-i18n>تقرير مصروفات</option>
-          <option value="payroll" data-i18n>تقرير رواتب</option><option value="rent" data-i18n>تقرير إيجارات</option><option value="pnl" data-i18n>تقرير ربح وخسارة</option><option value="cashflow" data-i18n>تقرير حركة نقدية</option>
+          <option value="payroll" data-i18n>تقرير رواتب</option><option value="rent" data-i18n>تقرير إيجارات</option><option value="pnl" data-i18n>تقرير ربح وخسارة</option><option value="cashflow" data-i18n>تقرير حركة نقدية</option><option value="receipts" data-i18n>أرشيف الإيصالات (بالصور)</option>
         </select></div>
       <div><label data-i18n>من / التاريخ</label><input type="date" id="rFrom"></div>
       <div><label data-i18n>إلى</label><input type="date" id="rTo"></div>
@@ -376,7 +376,8 @@ var Mgr = (function () {
       var rep = r.report;
       var html = '<div class="card soft"><h2>' + UI.esc(t(rep.title)) + '</h2><div class="muted">' + UI.esc(t(rep.subtitle)) + '</div>';
       if (rep.kpis.length) html += '<div class="kpis" style="margin:.8rem 0">' + rep.kpis.map(function (x) { return '<div class="kpi"><div class="l">' + UI.esc(t(x[0])) + '</div><div class="v num">' + (typeof x[1] === 'number' && x[0].indexOf('عدد') < 0 && x[0].indexOf('%') < 0 ? M(x[1]) : UI.esc(x[1])) + '</div></div>'; }).join('') + '</div>';
-      rep.sections.forEach(function (s) { html += '<h3>' + UI.esc(t(s.title)) + '</h3><div class="tbl-wrap">' + UI.table(s.headers.map(t), s.rows.map(function (row) { return row.map(function (v) { return UI.esc(tv(v)); }); }), true) + '</div>'; });
+      rep.sections.forEach(function (s) { html += '<h3>' + UI.esc(t(s.title)) + '</h3><div class="tbl-wrap">' + UI.table(s.headers.map(t), s.rows.map(function (row) { return row.map(function (v) { return /^https?:\/\//.test(String(v)) ? '<a href="' + UI.esc(v) + '" target="_blank" rel="noopener">📎 ' + t('فتح') + '</a>' : UI.esc(tv(v)); }); }), true) + '</div>'; });
+      if (rep.images && rep.images.length) html += '<p class="muted">' + t('صور الإيصالات تُدرج داخل ملف PDF عند التنزيل.') + '</p>';
       if (rep.notes.length) html += '<div class="alert warn" style="margin-top:.8rem">' + rep.notes.map(function (n) { return UI.esc(t(n)); }).join('<br>') + '</div>';
       $('#reportOut').innerHTML = html + '</div>';
     }).catch(UI.err);

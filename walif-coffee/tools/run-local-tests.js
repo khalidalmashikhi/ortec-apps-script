@@ -214,12 +214,18 @@ test('manager sales list + cancel a sales row', () => {
 
 console.log('\n19-20. PDF report + e-mail');
 test('report data for every type', () => {
-  for (const t of ['daily', 'weekly', 'monthly', 'custom', 'purchases', 'expenses', 'payroll', 'rent', 'pnl', 'cashflow']) {
+  for (const t of ['daily', 'weekly', 'monthly', 'custom', 'purchases', 'expenses', 'payroll', 'rent', 'pnl', 'cashflow', 'receipts']) {
     const r = ok(G.api_getReportData(mgr.token, t, '2026-09-14', '2026-09-15'), t); assert.ok(r.report.title);
   }
   const d = ok(G.api_getReportData(mgr.token, 'daily', '2026-09-14')).report; assert.strictEqual(d.range.from, '2026-09-14');
   assert.ok(d.kpis.find(k => k[0] === 'صافي المبيعات')[1] === 11.3);
   assert.ok(d.sections.find(s => s.title === 'أفضل 5 أصناف').rows.length === 5);
+});
+test('receipts archive report embeds attachment images in the PDF', () => {
+  const rep = ok(G.api_getReportData(mgr.token, 'receipts', '2026-09-13', TODAY)).report;
+  assert.strictEqual(rep.sections[0].rows.length, 1, 'one purchase has an attachment'); assert.ok(/INV-77|بن عربي/.test(rep.sections[0].rows[0].join(' ')));
+  const r = ok(G.api_generateReportPdf(mgr.token, 'receipts', '2026-09-13', TODAY)); assert.strictEqual(r.name, 'Walif-Coffee-Receipts-Report-2026-09-13_to_' + TODAY + '.pdf');
+  const doc = Object.values(S.DRIVE.docs).find(d => d.name.includes('Receipts')); assert.ok(doc.lines.some(l => /^\[image /.test(l)), 'image embedded: ' + doc.lines.join('|'));
 });
 test('PDF generated, named, stored in Reports/YYYY/MM, temp doc trashed', () => {
   const r = ok(G.api_generateReportPdf(mgr.token, 'daily', '2026-09-15'));

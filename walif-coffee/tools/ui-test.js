@@ -143,6 +143,8 @@ const OUT = path.join(__dirname, '..', 'tests', 'screenshots'); fs.mkdirSync(OUT
   await step('reports: view + PDF download', async () => {
     await page.click('#mgrTabs button[data-tab=mgr-reports]'); await page.selectOption('#rType', 'pnl'); await page.fill('#rFrom', '2026-09-13'); await page.fill('#rTo', '2026-09-15');
     await page.click('#btnReportView'); await page.waitForSelector('#reportOut .card'); if (!(await page.locator('#reportOut').innerText()).includes('صافي الربح التشغيلي')) throw new Error('report view');
+    await page.selectOption('#rType', 'receipts'); await page.click('#btnReportView'); await page.waitForFunction(() => /📎/.test(document.querySelector('#reportOut').innerText));
+    await page.selectOption('#rType', 'pnl'); await page.click('#btnReportView'); await page.waitForFunction(() => /صافي الربح التشغيلي/.test(document.querySelector('#reportOut').innerText));
     const dl = page.waitForEvent('download'); await page.click('#btnReportPdf'); const d = await dl; if (!/Walif-Coffee-PnL-Report/.test(d.suggestedFilename())) throw new Error(d.suggestedFilename());
     await page.screenshot({ path: OUT + '/06-report.png', fullPage: true });
   });

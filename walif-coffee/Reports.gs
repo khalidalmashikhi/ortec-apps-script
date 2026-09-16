@@ -5,8 +5,9 @@
 var REPORT_TYPES_ = {
   daily: 'التقرير اليومي', weekly: 'التقرير الأسبوعي', monthly: 'التقرير الشهري', custom: 'تقرير فترة مخصصة',
   purchases: 'تقرير المشتريات', expenses: 'تقرير المصروفات', payroll: 'تقرير الرواتب', rent: 'تقرير الإيجارات',
-  pnl: 'تقرير الربح والخسارة', cashflow: 'تقرير الحركة النقدية'
+  pnl: 'تقرير الربح والخسارة', cashflow: 'تقرير الحركة النقدية', receipts: 'أرشيف الإيصالات'
 };
+var RECEIPTS_MAX_IMAGES_ = 60;
 
 function reportRange_(type, from, to) {
   var today = parseDateOnly_(todayStr_());
@@ -101,14 +102,60 @@ function buildReport_(type, from, to) {
         ['للمقارنة: صافي الربح المحاسبي', k.operatingProfit], ['الفرق (نقد − ربح)', round3_(k.netCash - k.operatingProfit)]];
       rep.sections.push({ title: 'المشتريات حسب المورد', headers: ['المورد', 'الإجمالي'], rows: cb.purchasesBySupplier.map(function (s) { return [s.supplier, money(s.total)]; }) });
       break;
+    case 'receipts':
+      var receipts = collectReceipts_(fin);
+      rep.kpis = [['عدد الإيصالات المصورة', receipts.length], ['إجمالي مبالغها', round3_(receipts.reduce(function (t, r) { return t + r.amount; }, 0))]];
+      rep.sections.push({ title: 'الإيصالات', headers: ['#', 'التاريخ', 'النوع', 'الجهة', 'المبلغ', 'البيان', 'المرفق'],
+        rows: receipts.map(function (r, i) { return [i + 1, r.date, r.kind, r.party, money(r.amount), r.description, r.url]; }) });
+      rep.images = receipts;
+      rep.notes = [];
+      if (!receipts.length) rep.notes.push('لا توجد إيصالات مرفقة في هذه الفترة.');
+      if (receipts.length > RECEIPTS_MAX_IMAGES_) rep.notes.push('يُدرج في PDF أول ' + RECEIPTS_MAX_IMAGES_ + ' صورة فقط؛ الباقي بالروابط في الجدول.');
+      break;
   }
   return rep;
+}
+
+/** Active purchases / expenses / rents in the period that carry an attachment. */
+function collectReceipts_(fin) {
+  var out = [];
+  fin._purchases.forEach(function (r) { if (r['Attachment ID']) out.push({ date: dateCell_(r['Invoice Date']), kind: 'مشتريات', party: String(r.Supplier || ''), amount: toNum_(r.Total), description: String(r.Description || r['Invoice Number'] || ''), fileId: String(r['Attachment ID']), url: String(r['Attachment URL'] || '') }); });
+  fin._expenses.forEach(function (r) { if (r['Attachment ID']) out.push({ date: dateCell_(r['Expense Date']), kind: 'مصروف', party: String(r.Payee || r['Expense Type'] || ''), amount: toNum_(r.Amount), description: String(r.Description || ''), fileId: String(r['Attachment ID']), url: String(r['Attachment URL'] || '') }); });
+  fin._rent.forEach(function (r) { if (r['Attachment ID']) out.push({ date: r._d, kind: 'إيجار', party: String(r.Landlord || ''), amount: toNum_(r.Amount), description: String(r.Period || ''), fileId: String(r['Attachment ID']), url: String(r['Attachment URL'] || '') }); });
+  out.sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+  return out;
+}
+
+/** Appends each receipt image (JPG/PNG) to the document; PDFs and unreadable files are listed as links. */
+function appendReceiptImages_(body, rtl, receipts) {
+  var skipped = [];
+  receipts.slice(0, RECEIPTS_MAX_IMAGES_).forEach(function (r, i) {
+    var caption = (i + 1) + '. ' + r.date + ' — ' + r.kind + ' — ' + r.party + ' — ' + money_(r.amount) + ' ' + WC.CURRENCY + (r.description ? ' — ' + r.description : '');
+    rtl(body.appendParagraph(caption)).setBold(true);
+    try {
+      var file = DriveApp.getFileById(r.fileId);
+      var mime = String(file.getMimeType ? file.getMimeType() : file.getBlob().getContentType());
+      if (/^image\/(jpeg|jpg|png|gif)$/i.test(mime)) {
+        var img = body.appendImage(file.getBlob());
+        var w = img.getWidth(), h = img.getHeight(), maxW = 420, maxH = 560;
+        if (w && h) { var k = Math.min(maxW / w, maxH / h, 1); img.setWidth(Math.round(w * k)); img.setHeight(Math.round(h * k)); }
+      } else {
+        skipped.push(caption);
+        rtl(body.appendParagraph('ملف PDF — الرابط: ' + r.url));
+      }
+    } catch (e) {
+      skipped.push(caption);
+      rtl(body.appendParagraph('تعذر تحميل المرفق — الرابط: ' + r.url));
+    }
+    rtl(body.appendParagraph(''));
+  });
+  return skipped;
 }
 
 // ---------------------------------------------------------------- Google Docs → PDF
 
 function reportFileName_(rep) {
-  var typeName = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly', custom: 'Custom', purchases: 'Purchases', expenses: 'Expenses', payroll: 'Payroll', rent: 'Rent', pnl: 'PnL', cashflow: 'CashFlow' }[rep.type];
+  var typeName = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly', custom: 'Custom', purchases: 'Purchases', expenses: 'Expenses', payroll: 'Payroll', rent: 'Rent', pnl: 'PnL', cashflow: 'CashFlow', receipts: 'Receipts' }[rep.type];
   var period = rep.range.from === rep.range.to ? rep.range.from : rep.range.from + '_to_' + rep.range.to;
   return 'Walif-Coffee-' + typeName + '-Report-' + period + '.pdf';
 }
@@ -135,6 +182,11 @@ function renderReportPdf_(rep) {
     var data = [s.headers.map(String)].concat(s.rows.slice(0, 300).map(function (r) { return r.map(function (v) { return String(v == null ? '' : v); }); }));
     styleTable_(body.appendTable(data));
   });
+  if (rep.images && rep.images.length) {
+    rtl(body.appendParagraph('صور الإيصالات')).setHeading(DocumentApp.ParagraphHeading.HEADING2);
+    var skipped = appendReceiptImages_(body, rtl, rep.images);
+    if (skipped.length) rep.notes.push('إيصالات بدون صورة داخل الملف (PDF أو مرفق غير صالح): ' + skipped.length);
+  }
   if (rep.notes.length) {
     rtl(body.appendParagraph('ملاحظات')).setHeading(DocumentApp.ParagraphHeading.HEADING2);
     rep.notes.forEach(function (n) { rtl(body.appendListItem(n)); });

@@ -65,7 +65,7 @@ class DriveFile {
   getId() { return this.id; } getName() { return this.name; } getUrl() { return 'https://drive.google.com/file/d/' + this.id + '/view'; }
   setTrashed(t) { this.trashed = t; return this; } isTrashed() { return this.trashed; }
   getAs(mime) { if (mime !== 'application/pdf') throw new Error('unsupported getAs'); return makeBlob(Buffer.from('%PDF-1.4 simulated pdf of ' + this.name), 'application/pdf', this.name + '.pdf'); }
-  getBlob() { return this.blob; }
+  getBlob() { return this.blob; } getMimeType() { return this.mime; }
 }
 class Folder {
   constructor(name, parent) { this.id = 'D_' + crypto.randomUUID(); this.name = name; this.parent = parent; this.folders = []; this.files = []; this.trashed = false; }
@@ -91,6 +91,7 @@ class Doc {
     const para = (text) => { doc.lines.push(text); return { setHeading() { return this; }, setAlignment() { return this; }, setLeftToRight() { return this; }, setItalic() { return this; }, setBold() { return this; }, setForegroundColor() { return this; } }; };
     return {
       appendParagraph: para, appendListItem: para,
+      appendImage(blob) { doc.lines.push('[image ' + blob.getName() + ' ' + blob.getBytes().length + 'B]'); return { getWidth: () => 1200, getHeight: () => 1600, setWidth() { return this; }, setHeight() { return this; } }; },
       appendTable(rows) {
         rows.forEach(r => doc.lines.push(r.join(' | ')));
         const cell = () => ({ setBackgroundColor() { return this; }, getChild() { return { asParagraph: () => ({ setForegroundColor() { return this; }, setBold() { return this; }, setLeftToRight() { return this; }, setAlignment() { return this; } }) }; } });
