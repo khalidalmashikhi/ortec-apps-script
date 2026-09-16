@@ -209,6 +209,23 @@ function periodRange_(preset, from, to) {
   return { from: fmtDate_(f), to: fmtDate_(t) };
 }
 
+// ---------------------------------------------------------------- bank balance
+
+/**
+ * Current bank balance = opening balance (Settings) + net cash movement from the opening date until today.
+ * Independent of the dashboard filters so the figure is always "as of now".
+ */
+function bankBalance_() {
+  var s = getAllSettings_();
+  var opening = round3_(toNum_(s.OPENING_BALANCE));
+  var openingDate = fmtDate_(parseDateOnly_(s.OPENING_BALANCE_DATE));
+  if (!openingDate) return { configured: false, opening: opening, openingDate: '', movement: 0, balance: opening, asOf: todayStr_() };
+  var today = todayStr_();
+  var movement = 0;
+  if (openingDate <= today) movement = computeFinancials_(openingDate, today, {}).kpis.netCash;
+  return { configured: true, opening: opening, openingDate: openingDate, movement: movement, balance: round3_(opening + movement), asOf: today };
+}
+
 // ---------------------------------------------------------------- API
 
 function api_getDashboard(token, filters) {
@@ -223,7 +240,7 @@ function api_getDashboard(token, filters) {
     var cmp = comparisonSeries_(fin, sb, cb);
     delete cb.expensesByDay; delete cb.purchasesPaidByDay; delete cb.payrollByDay; delete cb.rentByDay;
     var out = {
-      ok: true, range: range, kpis: fin.kpis, sales: sb, costs: cb, comparison: cmp,
+      ok: true, range: range, kpis: fin.kpis, bank: bankBalance_(), sales: sb, costs: cb, comparison: cmp,
       options: filterOptions_(),
       note: 'شراء المخزون يؤثر على النقد عند دفعه، بينما تكلفة الجزء المباع منه فقط تظهر في الربح من خلال Cost of goods القادمة من Loyverse. لذلك لا تُخصم فواتير المخزون مرة ثانية من صافي الربح.',
       demoPasswordsActive: getSetting_('DEMO_PASSWORDS_ACTIVE') === 'true'

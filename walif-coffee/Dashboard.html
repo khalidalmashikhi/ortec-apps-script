@@ -31,6 +31,11 @@
     <div class="muted" id="rangeLabel" style="margin-top:.5rem"></div>
   </div>
 
+  <div class="bank-card hidden" id="bankCard">
+    <div class="l" data-i18n>رصيد الحساب البنكي الحالي</div>
+    <div class="v num" id="bankBalance">—</div>
+    <div class="s muted" id="bankDetail"></div>
+  </div>
   <div class="kpis" id="kpis"></div>
   <div class="alert info" id="dashNote" style="margin-top:.8rem"></div>
 
@@ -130,6 +135,12 @@
           <select name="reportMode"><option value="previous_day" data-i18n>تقرير اليوم السابق كاملًا (الافتراضي)</option><option value="today" data-i18n>تقرير اليوم حتى وقت الإرسال</option></select></div>
         <div class="field"><label><input type="checkbox" name="reportEnabled" style="width:auto;margin-inline-end:.4rem"><span data-i18n>تفعيل الإرسال اليومي التلقائي</span></label></div>
         <div class="muted" id="triggerState" style="margin-bottom:.6rem"></div>
+        <h2 data-i18n>الحساب البنكي</h2>
+        <div class="grid cols-2">
+          <div class="field"><label data-i18n>الرصيد الافتتاحي</label><input name="openingBalance" type="number" step="0.001" dir="ltr" placeholder="0.000"></div>
+          <div class="field"><label data-i18n>تاريخ الرصيد الافتتاحي</label><input name="openingBalanceDate" type="date" dir="ltr"></div>
+        </div>
+        <div class="muted" id="bankState" style="margin-bottom:.6rem" data-i18n>الرصيد الحالي = الرصيد الافتتاحي + صافي الحركة النقدية من ذلك التاريخ حتى اليوم.</div>
         <div class="row">
           <button class="btn" type="submit" data-i18n>حفظ الإعدادات</button>
           <button class="btn secondary" type="button" id="btnTestEmail" data-i18n>إرسال تقرير تجريبي الآن</button>
@@ -251,6 +262,12 @@ var Mgr = (function () {
     return '<div class="kpi ' + (cls || '') + '"><div class="l">' + t(label) + '</div><div class="v num">' + (isCount ? UI.int(value) : UI.money(value)) + '</div></div>';
   }
   var M = function (v) { return UI.money(v); };
+  function renderBank(bank) {
+    var card = $('#bankCard'); if (!bank || !bank.configured) { card.classList.add('hidden'); return; }
+    card.classList.remove('hidden'); card.classList.toggle('neg', bank.balance < 0);
+    $('#bankBalance').textContent = UI.money(bank.balance) + ' ' + (window.BRAND && BRAND.currency || 'OMR');
+    $('#bankDetail').textContent = t('رصيد افتتاحي') + ' ' + UI.money(bank.opening) + ' (' + bank.openingDate + ') ' + (bank.movement >= 0 ? '+' : '−') + ' ' + UI.money(Math.abs(bank.movement)) + ' ' + t('حركة نقدية') + ' · ' + t('حتى') + ' ' + bank.asOf;
+  }
 
   function render(r) {
     var k = r.kpis;
@@ -266,6 +283,7 @@ var Mgr = (function () {
       kpi('صافي الحركة النقدية', k.netCash, k.netCash >= 0 ? 'good' : 'bad'),
       kpi('عدد الفواتير', k.receipts, '', true), kpi('متوسط قيمة الفاتورة', k.avgReceipt)
     ].join('');
+    renderBank(r.bank);
     $('#dashNote').textContent = t(r.note);
     $('#demoWarning').classList.toggle('hidden', !r.demoPasswordsActive);
     $('#reconTable tbody').innerHTML = [
@@ -421,6 +439,8 @@ var Mgr = (function () {
     var f = $('#settingsForm');
     fillBrand(s.brand, s.brandRaw);
     f.reportEmail.value = s.reportEmail || ''; f.reportHour.value = s.reportHour; f.reportMode.value = s.reportMode; f.reportEnabled.checked = !!s.reportEnabled;
+    f.openingBalance.value = s.openingBalanceDate ? UI.money(s.openingBalance).replace(/,/g, '') : ''; f.openingBalanceDate.value = s.openingBalanceDate || '';
+    if (s.bank && s.bank.configured) $('#bankState').textContent = t('الرصيد الحالي') + ': ' + UI.money(s.bank.balance) + ' ' + (window.BRAND && BRAND.currency || 'OMR') + ' · ' + t('حتى') + ' ' + s.bank.asOf;
     $('#triggerState').textContent = s.trigger && s.trigger.exists ? t('✅ المشغل اليومي (Trigger) موجود.') : t('ℹ️ لا يوجد مشغل يومي حاليًا. فعّل الإرسال واحفظ الإعدادات أو اضغط إعادة إنشاء Trigger.');
     $('#demoWarning').classList.toggle('hidden', !s.demoPasswordsActive);
   }
@@ -434,8 +454,9 @@ var Mgr = (function () {
   function saveSettings(e) {
     e.preventDefault();
     var f = $('#settingsForm');
-    App.api('api_saveSettings', { reportEmail: f.reportEmail.value.trim(), reportHour: +f.reportHour.value, reportMode: f.reportMode.value, reportEnabled: f.reportEnabled.checked })
-      .then(function (r) { fillSettings(r.settings); UI.toast(t('تم حفظ الإعدادات'), 'ok'); }).catch(UI.err);
+    App.api('api_saveSettings', { reportEmail: f.reportEmail.value.trim(), reportHour: +f.reportHour.value, reportMode: f.reportMode.value, reportEnabled: f.reportEnabled.checked,
+      openingBalance: f.openingBalance.value.trim(), openingBalanceDate: f.openingBalanceDate.value })
+      .then(function (r) { fillSettings(r.settings); renderBank(r.settings.bank); UI.toast(t('تم حفظ الإعدادات'), 'ok'); }).catch(UI.err);
   }
   function testEmail() {
     UI.confirm(t('إرسال تقرير تجريبي'), t('سيتم إنشاء تقرير PDF وإرساله إلى البريد المحفوظ في الإعدادات. متابعة؟')).then(function (ok) {

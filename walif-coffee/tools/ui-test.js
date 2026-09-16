@@ -158,6 +158,16 @@ const OUT = path.join(__dirname, '..', 'tests', 'screenshots'); fs.mkdirSync(OUT
     await page.selectOption('#pwUser', 'ac'); await page.fill('#passwordForm [name=newPassword]', 'secret99'); await page.fill('#passwordForm [name=confirm]', 'secret99'); await page.click('#passwordForm button[type=submit]'); await page.waitForSelector('.toast.ok');
     await page.screenshot({ path: OUT + '/07-settings.png', fullPage: true });
   });
+  await step('bank balance: opening balance in settings shows as a live card on the dashboard', async () => {
+    await page.click('#mgrTabs button[data-tab=mgr-settings]'); await page.waitForSelector('#settingsForm [name=openingBalance]');
+    await page.fill('#settingsForm [name=openingBalance]', '100'); await page.fill('#settingsForm [name=openingBalanceDate]', '2026-09-13');
+    await page.click('#settingsForm button[type=submit]'); await page.waitForSelector('.toast.ok'); await page.waitForTimeout(200);
+    if (!/\d/.test(await page.locator('#bankState').innerText())) throw new Error('bank state: ' + await page.locator('#bankState').innerText());
+    await page.click('#mgrTabs button[data-tab=mgr-dash]'); await page.waitForSelector('#bankCard:not(.hidden)');
+    const txt = await page.locator('#bankBalance').innerText(); if (!/\d/.test(txt)) throw new Error('bank balance empty');
+    const detail = await page.locator('#bankDetail').innerText(); if (!detail.includes('2026-09-13')) throw new Error('bank detail: ' + detail);
+    await page.screenshot({ path: OUT + '/07b-bank.png' });
+  });
   await step('brand form re-skins the app live (name, logo word, colours)', async () => {
     await page.click('#mgrTabs button[data-tab=mgr-settings]'); await page.waitForSelector('#brandForm [name=name]');
     await page.fill('#brandForm [name=name]', 'Bean Bar'); await page.fill('#brandForm [name=nameAr]', 'بين بار'); await page.fill('#brandForm [name=short]', 'BEAN');

@@ -13,6 +13,7 @@ function setupSystem() {
     report.sheets = ensureAllSheets_();
     ensureDefaultSettings_();
     seedWalifBrand_();
+    seedWalifOpening_();
     report.folders = ensureFolders_();
     report.users = ensureDemoUsers_();
     migrateLegacyDemoUsers_();
@@ -143,7 +144,8 @@ function ensureDefaultSettings_() {
 function getAllSettings_() {
   var out = {};
   Object.keys(WC.DEFAULT_SETTINGS).forEach(function (k) { out[k] = WC.DEFAULT_SETTINGS[k].value; });
-  readRows_(WC.SHEETS.SETTINGS).forEach(function (r) { out[String(r.Key)] = String(r.Value == null ? '' : r.Value); });
+  // Sheets auto-parses date-like values (e.g. OPENING_BALANCE_DATE) into Date objects: normalise them back to yyyy-MM-dd.
+  readRows_(WC.SHEETS.SETTINGS).forEach(function (r) { out[String(r.Key)] = r.Value instanceof Date ? fmtDate_(r.Value) : String(r.Value == null ? '' : r.Value); });
   return out;
 }
 function getSetting_(key) { return getAllSettings_()[key]; }
@@ -169,6 +171,16 @@ function seedWalifBrand_() {
     if (!getSetting_('REPORT_EMAIL')) { setSetting_('REPORT_EMAIL', 'khalid98115159@gmail.com', 'system'); setSetting_('REPORT_ENABLED', 'true', 'system'); }
   }
   props_().setProperty('BRAND_SEEDED', '1');
+}
+
+/** Walif only: opening bank balance 100 OMR as of the day the books started (2026-09-16). Runs once. */
+function seedWalifOpening_() {
+  if (props_().getProperty('OPENING_SEEDED') === '1') return;
+  if (ss_().getId() === WC.WALIF_SHEET_ID && !getSetting_('OPENING_BALANCE_DATE')) {
+    setSetting_('OPENING_BALANCE', '100', 'system');
+    setSetting_('OPENING_BALANCE_DATE', '2026-09-16', 'system');
+  }
+  props_().setProperty('OPENING_SEEDED', '1');
 }
 
 // ---------------------------------------------------------------- Users

@@ -6,7 +6,7 @@ var WC = {
   /** Product (white-label) identity. Per-customer branding lives in Settings (BRAND_*), see brand_(). */
   APP_NAME: 'Cafe Books',
   APP_NAME_AR: 'دفاتر الكافيه',
-  VERSION: '1.3.0',
+  VERSION: '1.4.0',
   /** The original Walif Coffee installation gets its branding seeded automatically (see seedWalifBrand_). */
   WALIF_SHEET_ID: '1HfsBDCDY5Wyy0A18fnG_VGYO0xYC9tjMMOkQN9e2nxQ',
   TZ: 'Asia/Muscat',
@@ -87,6 +87,8 @@ var WC = {
     BRAND_CREAM: { value: '#f0ead8', desc: 'اللون الفاتح (hex)' },
     BRAND_LOGO_URL: { value: '', desc: 'رابط صورة شعار (اختياري، يحل محل الشعار النصي)' },
     CURRENCY: { value: 'OMR', desc: 'رمز العملة' },
+    OPENING_BALANCE: { value: '0', desc: 'الرصيد الافتتاحي للحساب البنكي' },
+    OPENING_BALANCE_DATE: { value: '', desc: 'تاريخ الرصيد الافتتاحي (yyyy-MM-dd) — تُحسب الحركة النقدية من هذا اليوم' },
     REPORT_MODE: { value: 'previous_day', desc: 'previous_day = تقرير اليوم السابق كاملًا، today = تقرير اليوم حتى وقت الإرسال' },
     DEMO_PASSWORDS_ACTIVE: { value: 'true', desc: 'هل ما زالت كلمات المرور التجريبية مستخدمة' },
     SETUP_DONE: { value: 'false', desc: 'هل تمت التهيئة' },

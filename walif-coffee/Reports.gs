@@ -63,6 +63,8 @@ function buildReport_(type, from, to) {
   switch (type) {
     case 'daily': case 'weekly': case 'monthly': case 'custom':
       rep.kpis = kpiRows_(k);
+      var bank = bankBalance_();
+      if (bank.configured) rep.kpis.push(['رصيد الحساب البنكي (حتى ' + bank.asOf + ')', bank.balance]);
       if (type !== 'daily') rep.sections.push({ title: 'المبيعات اليومية', headers: ['التاريخ', 'صافي المبيعات', 'التكلفة', 'مجمل الربح', 'الفواتير'], rows: sb.daily.map(function (d) { return [d.date, money(d.net), money(d.cogs), money(d.profit), d.receipts]; }) });
       salesSections();
       if (cb.expensesByType.length) rep.sections.push({ title: 'المصروفات حسب النوع', headers: ['النوع', 'المبلغ'], rows: cb.expensesByType.map(function (e) { return [e.type, money(e.amount)]; }) });
@@ -100,6 +102,8 @@ function buildReport_(type, from, to) {
     case 'cashflow':
       rep.kpis = [['صافي المبيعات (داخل)', k.netSales], ['المشتريات المدفوعة', k.purchasesPaid], ['المصروفات المدفوعة', k.expensesPaid], ['الرواتب المدفوعة', k.payrollPaid], ['الإيجار المدفوع', k.rentPaid], ['صافي الحركة النقدية', k.netCash],
         ['للمقارنة: صافي الربح المحاسبي', k.operatingProfit], ['الفرق (نقد − ربح)', round3_(k.netCash - k.operatingProfit)]];
+      var bank2 = bankBalance_();
+      if (bank2.configured) rep.kpis.push(['رصيد الحساب البنكي (حتى ' + bank2.asOf + ')', bank2.balance]);
       rep.sections.push({ title: 'المشتريات حسب المورد', headers: ['المورد', 'الإجمالي'], rows: cb.purchasesBySupplier.map(function (s) { return [s.supplier, money(s.total)]; }) });
       break;
     case 'receipts':

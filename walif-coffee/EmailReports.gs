@@ -25,6 +25,7 @@ function sendDailyReport_(actor, to, date, partialDay) {
   var b = brand_();
   var rep = buildReport_('daily', date, date);
   var pdf = renderReportPdf_(rep);
+  var bank = bankBalance_();
   var k = {};
   rep.kpis.forEach(function (r) { k[r[0]] = r[1]; });
   var row = function (label) {
@@ -36,6 +37,7 @@ function sendDailyReport_(actor, to, date, partialDay) {
     '<p style="margin:0 0 12px;color:#6b7a72">' + escapeHtml_(rep.subtitle) + (partialDay ? ' (حتى وقت الإرسال)' : '') + '</p>' +
     '<table style="border-collapse:collapse;width:100%;background:#fff">' +
     ['صافي المبيعات', 'تكلفة البضاعة المباعة', 'مجمل الربح', 'المشتريات المدفوعة', 'المصروفات', 'الرواتب المدفوعة', 'الإيجار المدفوع', 'صافي الربح التشغيلي', 'صافي الحركة النقدية', 'عدد الفواتير', 'متوسط الفاتورة'].map(row).join('') +
+    (bank.configured ? '<tr><td style="padding:8px 10px;background:' + b.cream + ';font-weight:bold">رصيد الحساب البنكي (حتى ' + escapeHtml_(bank.asOf) + ')</td><td style="padding:8px 10px;background:' + b.cream + ';font-weight:bold">' + money_(bank.balance) + ' ' + b.currency + '</td></tr>' : '') +
     '</table>' +
     (rep.notes.length ? '<p style="margin-top:12px"><b>ملاحظات:</b><br>' + rep.notes.map(escapeHtml_).join('<br>') + '</p>' : '') +
     '<p style="color:#8a9690;font-size:12px;margin-top:16px">التقرير الكامل مرفق بصيغة PDF. رابط الملف: <a href="' + escapeHtml_(pdf.url) + '">' + escapeHtml_(pdf.name) + '</a></p></div>';

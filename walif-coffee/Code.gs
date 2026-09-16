@@ -14,6 +14,7 @@ function doGet(e) {
   } else {
     if (props_().getProperty('USERS_VERSION') !== WC.USERS_VERSION) { try { withLock_(migrateLegacyDemoUsers_); } catch (err) { logError_('doGet.migrateUsers', null, err, ''); } }
     if (props_().getProperty('BRAND_SEEDED') !== '1') { try { withLock_(function () { ensureDefaultSettings_(); seedWalifBrand_(); }); } catch (err) { logError_('doGet.seedBrand', null, err, ''); } }
+    if (props_().getProperty('OPENING_SEEDED') !== '1') { try { withLock_(function () { ensureDefaultSettings_(); seedWalifOpening_(); }); } catch (err) { logError_('doGet.seedOpening', null, err, ''); } }
   }
   var b = brand_();
   var t = HtmlService.createTemplateFromFile('Index');

@@ -248,6 +248,32 @@ test('test e-mail requires recipient; settings save creates trigger', () => {
   r = ok(G.api_sendTestReport(mgr.token, '2026-09-14')); assert.strictEqual(r.sentTo, 'owner@example.com');
   const m = S.STATE.mails[0]; assert.ok(/التقرير اليومي 2026-09-14/.test(m.subject)); assert.ok(m.attachments[0].name.endsWith('.pdf')); assert.ok(/11\.300/.test(m.htmlBody));
 });
+test('bank balance = opening balance + net cash since the opening date', () => {
+  // Walif sheet is seeded with 100 OMR as of 2026-09-16
+  let s = ok(G.api_getSettings(mgr.token)).settings;
+  assert.strictEqual(s.openingBalance, 100); assert.strictEqual(s.openingBalanceDate, '2026-09-16'); assert.ok(s.bank.configured);
+  const since = ok(G.api_getDashboard(mgr.token, { preset: 'custom', from: '2026-09-16', to: TODAY }));
+  assert.strictEqual(since.bank.balance, G.round3_(100 + since.kpis.netCash)); assert.strictEqual(since.bank.movement, since.kpis.netCash);
+  // filters never change the balance
+  const filtered = ok(G.api_getDashboard(mgr.token, { preset: 'custom', from: '2026-09-13', to: '2026-09-13', cashier: 'Salim' }));
+  assert.strictEqual(filtered.bank.balance, since.bank.balance);
+  // manager can move the opening date back: movement now includes the earlier days
+  s = ok(G.api_saveSettings(mgr.token, { reportEmail: 'owner@example.com', reportHour: 7, reportEnabled: true, openingBalance: '250.5', openingBalanceDate: '2026-09-13' })).settings;
+  const all = ok(G.api_getDashboard(mgr.token, { preset: 'custom', from: '2026-09-13', to: TODAY }));
+  assert.strictEqual(s.bank.balance, G.round3_(250.5 + all.kpis.netCash)); assert.strictEqual(s.bank.opening, 250.5);
+  assert.ok(all.kpis.netCash !== since.kpis.netCash, 'earlier days carry cash movement');
+  // validation
+  let r = G.api_saveSettings(mgr.token, { reportEmail: 'owner@example.com', reportHour: 7, openingBalance: 'abc', openingBalanceDate: '2026-09-13' }); assert.ok(!r.ok && /رقم/.test(r.error));
+  r = G.api_saveSettings(mgr.token, { reportEmail: 'owner@example.com', reportHour: 7, openingBalance: '5', openingBalanceDate: '2099-01-01' }); assert.ok(!r.ok && /المستقبل/.test(r.error));
+  r = G.api_saveSettings(mgr.token, { reportEmail: 'owner@example.com', reportHour: 7, openingBalance: '5', openingBalanceDate: '' }); assert.ok(!r.ok && /حدد/.test(r.error));
+  // reports and e-mail carry the balance
+  const rep = ok(G.api_getReportData(mgr.token, 'cashflow', '2026-09-13', TODAY)); assert.ok(rep.report.kpis.some(x => /رصيد الحساب البنكي/.test(x[0]) && x[1] === s.bank.balance));
+  const before = S.STATE.mails.length; ok(G.api_sendTestReport(mgr.token, '2026-09-14')); assert.ok(/رصيد الحساب البنكي/.test(S.STATE.mails[before].htmlBody)); S.STATE.mails.splice(before, 1);
+  // not configured -> hidden
+  ok(G.api_saveSettings(mgr.token, { reportEmail: 'owner@example.com', reportHour: 7, reportEnabled: true, openingBalance: '', openingBalanceDate: '' }));
+  assert.strictEqual(ok(G.api_getDashboard(mgr.token, {})).bank.configured, false);
+  ok(G.api_saveSettings(mgr.token, { reportEmail: 'owner@example.com', reportHour: 7, reportEnabled: true, openingBalance: '100', openingBalanceDate: '2026-09-16' }));
+});
 test('trigger job runs (previous day) and logs; failure goes to Error_Log without throwing', () => {
   G.sendDailyReportJob(); assert.strictEqual(S.STATE.mails.length, 2);
   const origSend = G.MailApp.sendEmail; G.MailApp.sendEmail = () => { throw new Error('smtp down'); };

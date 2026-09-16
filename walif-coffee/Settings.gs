@@ -7,7 +7,8 @@ function publicSettings_() {
   return {
     reportEmail: s.REPORT_EMAIL, reportHour: toNum_(s.REPORT_HOUR), reportEnabled: s.REPORT_ENABLED === 'true', reportMode: s.REPORT_MODE || 'previous_day',
     demoPasswordsActive: s.DEMO_PASSWORDS_ACTIVE === 'true', trigger: triggerInfo_(), timezone: WC.TZ, version: WC.VERSION,
-    brand: brand_(), brandRaw: { logoUrl: String(s.BRAND_LOGO_URL || '') }
+    brand: brand_(), brandRaw: { logoUrl: String(s.BRAND_LOGO_URL || '') },
+    openingBalance: round3_(toNum_(s.OPENING_BALANCE)), openingBalanceDate: fmtDate_(parseDateOnly_(s.OPENING_BALANCE_DATE)), bank: bankBalance_()
   };
 }
 
@@ -27,14 +28,26 @@ function api_saveSettings(token, s) {
     var enabled = s.reportEnabled === true || String(s.reportEnabled) === 'true';
     if (enabled && !email) throw new Error('لا يمكن تفعيل الإرسال اليومي بدون بريد مستلم.');
     var mode = String(s.reportMode) === 'today' ? 'today' : 'previous_day';
+    var hasOpening = s.openingBalance !== undefined || s.openingBalanceDate !== undefined;
+    var opening = 0, openingDate = '';
+    if (hasOpening) {
+      var ob = String(s.openingBalance === undefined || s.openingBalance === null ? '' : s.openingBalance).trim();
+      if (ob !== '' && isNaN(Number(ob))) throw new Error('الرصيد الافتتاحي يجب أن يكون رقمًا.');
+      opening = round3_(toNum_(ob));
+      openingDate = cleanText_(s.openingBalanceDate, 10);
+      if (openingDate && !parseDateOnly_(openingDate)) throw new Error('تاريخ الرصيد الافتتاحي غير صالح.');
+      if (openingDate && openingDate > todayStr_()) throw new Error('تاريخ الرصيد الافتتاحي لا يمكن أن يكون في المستقبل.');
+      if (!openingDate && opening !== 0) throw new Error('حدد تاريخ الرصيد الافتتاحي.');
+    }
     return withLock_(function () {
+      if (hasOpening) { setSetting_('OPENING_BALANCE', String(opening), actor.username); setSetting_('OPENING_BALANCE_DATE', openingDate, actor.username); }
       setSetting_('REPORT_EMAIL', email, actor.username);
       setSetting_('REPORT_HOUR', String(hour), actor.username);
       setSetting_('REPORT_ENABLED', enabled ? 'true' : 'false', actor.username);
       setSetting_('REPORT_MODE', mode, actor.username);
       var trig = null;
       if (enabled) { rebuildDailyTrigger_(hour); trig = triggerInfo_(); logAudit_(actor, 'CREATE_TRIGGER', 'Settings', '', 'daily trigger at ' + hour + ':00', 'OK'); }
-      logAudit_(actor, 'CHANGE_SETTINGS', 'Settings', '', 'email=' + email + ' hour=' + hour + ' enabled=' + enabled + ' mode=' + mode, 'OK');
+      logAudit_(actor, 'CHANGE_SETTINGS', 'Settings', '', 'email=' + email + ' hour=' + hour + ' enabled=' + enabled + ' mode=' + mode + (hasOpening ? ' opening=' + opening + '@' + openingDate : ''), 'OK');
       return { ok: true, settings: publicSettings_() };
     });
   });
