@@ -67,6 +67,7 @@
     <div class="card"><h3 data-i18n>المصروفات حسب النوع</h3><div class="tbl-wrap" id="tExpType"></div></div>
     <div class="card"><h3 data-i18n>الرواتب حسب الشهر</h3><div class="tbl-wrap" id="tPayroll"></div></div>
     <div class="card"><h3 data-i18n>الإيجارات وحالة الدفع</h3><div class="tbl-wrap" id="tRent"></div></div>
+    <div class="card"><h3 data-i18n>الكاش المسحوب</h3><div class="tbl-wrap" id="tWithdrawals"></div></div>
     <div class="card"><h3 data-i18n>مقارنة شهرية: المبيعات والمصروفات والربح</h3><div class="tbl-wrap" id="tMonthly"></div></div>
   </div>
   <div class="card"><h3 data-i18n>مقارنة يومية: المبيعات والمصروفات والربح</h3><div class="tbl-wrap" id="tCompareDaily"></div></div>
@@ -92,7 +93,7 @@
   <div class="card">
     <div class="section-title"><h2 data-i18n>المشتريات والمصروفات والرواتب والإيجارات</h2>
       <div class="row">
-        <select id="mrEntity" style="width:auto"><option value="purchases" data-i18n>المشتريات</option><option value="expenses" data-i18n>المصروفات</option><option value="payroll" data-i18n>الرواتب</option><option value="rent" data-i18n>الإيجارات</option></select>
+        <select id="mrEntity" style="width:auto"><option value="purchases" data-i18n>المشتريات</option><option value="expenses" data-i18n>المصروفات</option><option value="payroll" data-i18n>الرواتب</option><option value="rent" data-i18n>الإيجارات</option><option value="withdrawals" data-i18n>الكاش المسحوب</option></select>
         <input type="date" id="mrFrom" style="width:auto"><input type="date" id="mrTo" style="width:auto">
         <select id="mrStatus" style="width:auto"><option value="" data-i18n>الكل</option><option value="ACTIVE" data-i18n>فعّال</option><option value="CANCELLED" data-i18n>ملغى</option></select>
         <button class="btn sm" id="btnMgrRecords" type="button" data-i18n>عرض</button>
@@ -280,7 +281,7 @@ var Mgr = (function () {
       '<div class="kpi"><div class="l">' + t('هامش مجمل الربح') + '</div><div class="v num">' + UI.pct(k.grossMargin) + '</div></div>',
       kpi('مشتريات المخزون', k.inventoryPurchases), kpi('المصروفات العامة', k.expenses), kpi('الرواتب', k.payroll), kpi('الإيجار', k.rent),
       kpi('صافي الربح التشغيلي', k.operatingProfit, k.operatingProfit >= 0 ? 'good' : 'bad'),
-      kpi('صافي الحركة النقدية', k.netCash, k.netCash >= 0 ? 'good' : 'bad'),
+      kpi('كاش مسحوب', k.withdrawals), kpi('صافي الحركة النقدية', k.netCash, k.netCash >= 0 ? 'good' : 'bad'),
       kpi('عدد الفواتير', k.receipts, '', true), kpi('متوسط قيمة الفاتورة', k.avgReceipt)
     ].join('');
     renderBank(r.bank);
@@ -290,6 +291,7 @@ var Mgr = (function () {
       ['صافي الربح المحاسبي (التشغيلي)', k.operatingProfit], ['صافي الحركة النقدية', k.netCash], ['الفرق', k.netCash - k.operatingProfit],
       ['قيمة مشتريات المخزون (فواتير)', k.inventoryPurchases], ['المشتريات المدفوعة فعليًا', k.purchasesPaid], ['تكلفة البضاعة المباعة (Loyverse)', k.cogs],
       ['مجمل الربح المحسوب', k.grossProfit], ['مجمل الربح حسب Loyverse', k.loyverseGrossProfit], ['فرق المطابقة', k.grossProfitDiff],
+      ['كاش مسحوب — إيداع في البنك (تحويل داخلي)', k.withdrawalsToBank], ['كاش مسحوب — مصاريف وأخرى', k.withdrawalsOut], ['مدفوع من الكاش المسحوب', k.paidFromWithdrawn],
       ['المرتجعات (Refund)', k.refunds]
     ].map(function (x) { return '<tr><td>' + t(x[0]) + '</td><td class="n">' + M(x[1]) + '</td></tr>'; }).join('');
 
@@ -308,6 +310,7 @@ var Mgr = (function () {
     $('#tPurCat').innerHTML = T(['التصنيف', 'الإجمالي'], c.purchasesByCategory.map(function (i) { return [tv(i.category), M(i.total)]; }));
     $('#tExpType').innerHTML = T(['النوع', 'المبلغ'], c.expensesByType.map(function (i) { return [tv(i.type), M(i.amount)]; }));
     $('#tPayroll').innerHTML = T(['الشهر', 'المبلغ'], c.payrollByMonth.map(function (i) { return [i.month, M(i.amount)]; }));
+    $('#tWithdrawals').innerHTML = T(['التاريخ', 'المبلغ', 'الوجهة', 'البيان', 'أدخله', 'المرفق'], c.withdrawalsList.map(function (w) { return [w.date, M(w.amount), tv(w.destination), w.description, w.by, w.url ? '<a href="' + UI.esc(w.url) + '" target="_blank" rel="noopener">📎</a>' : '—']; }));
     $('#tRent').innerHTML = T(['الفترة', 'المؤجر', 'المبلغ', 'الاستحقاق', 'الدفع', 'الحالة'], c.rentList.map(function (i) { return [i.period, i.landlord, M(i.amount), i.dueDate, i.paymentDate, UI.badge(i.status)]; }));
     $('#tMonthly').innerHTML = T(['الشهر', 'صافي المبيعات', 'التكلفة', 'المصروفات التشغيلية', 'المشتريات المدفوعة', 'صافي الربح'], cmp.monthly.map(function (m) { return [m.month, M(m.net), M(m.cogs), M(m.opex), M(m.purchasesPaid), M(m.profit)]; }));
     $('#tCompareDaily').innerHTML = T(['التاريخ', 'صافي المبيعات', 'التكلفة', 'المصروفات', 'الرواتب', 'الإيجار', 'المشتريات المدفوعة', 'صافي الربح'], cmp.daily.map(function (d) { return [d.date, M(d.net), M(d.cogs), M(d.expenses), M(d.payroll), M(d.rent), M(d.purchasesPaid), M(d.profit)]; }));
@@ -355,9 +358,10 @@ var Mgr = (function () {
     purchases: ['Invoice Date', 'Invoice Number', 'Supplier', 'Category', 'Total', 'Paid Amount', 'Remaining Amount', 'Payment Method', 'Payment Status', 'Is Inventory', 'Attachment URL'],
     expenses: ['Expense Date', 'Expense Type', 'Description', 'Amount', 'Payment Method', 'Payee', 'Payment Status', 'Attachment URL'],
     payroll: ['Month', 'Employee', 'Basic Salary', 'Allowance', 'Overtime', 'Deduction', 'Advance', 'Net Salary', 'Payment Date', 'Payment Status'],
-    rent: ['Period', 'Landlord', 'Amount', 'Due Date', 'Payment Date', 'Payment Method', 'Status', 'Attachment URL']
+    rent: ['Period', 'Landlord', 'Amount', 'Due Date', 'Payment Date', 'Payment Method', 'Status', 'Attachment URL'],
+    withdrawals: ['Withdrawal Date', 'Amount', 'Destination', 'Description', 'Attachment URL']
   };
-  var API = { purchases: 'api_listPurchases', expenses: 'api_listExpenses', payroll: 'api_listPayroll', rent: 'api_listRent' };
+  var API = { purchases: 'api_listPurchases', expenses: 'api_listExpenses', payroll: 'api_listPayroll', rent: 'api_listRent', withdrawals: 'api_listWithdrawals' };
   function loadRecords() {
     var ent = $('#mrEntity').value;
     App.api(API[ent], { from: $('#mrFrom').value, to: $('#mrTo').value, status: $('#mrStatus').value, limit: 500 }).then(function (r) {
@@ -382,7 +386,8 @@ var Mgr = (function () {
     purchases: [['Invoice Number', 'رقم الفاتورة'], ['Invoice Date', 'التاريخ', 'date'], ['Supplier', 'المورد'], ['Category', 'التصنيف', 'purchaseCategories'], ['Description', 'الوصف'], ['Subtotal', 'قبل الضريبة', 'number'], ['Tax', 'الضريبة', 'number'], ['Discount', 'الخصم', 'number'], ['Paid Amount', 'المدفوع', 'number'], ['Payment Method', 'طريقة الدفع', 'paymentMethods'], ['Payment Status', 'حالة الدفع', 'purchasePaymentStatus'], ['Is Inventory', 'مخزون؟', ['نعم', 'لا']]],
     expenses: [['Expense Date', 'التاريخ', 'date'], ['Expense Type', 'النوع', 'expenseTypes'], ['Description', 'البيان'], ['Amount', 'المبلغ', 'number'], ['Payment Method', 'طريقة الدفع', 'paymentMethods'], ['Payee', 'المستفيد'], ['Payment Status', 'حالة الدفع', 'simplePaymentStatus']],
     payroll: [['Employee', 'العامل'], ['Month', 'الشهر', 'month'], ['Basic Salary', 'الأساسي', 'number'], ['Allowance', 'البدل', 'number'], ['Overtime', 'الإضافي', 'number'], ['Deduction', 'الخصم', 'number'], ['Advance', 'السلفة', 'number'], ['Payment Date', 'تاريخ الدفع', 'date'], ['Payment Method', 'طريقة الدفع', 'paymentMethods'], ['Payment Status', 'حالة الدفع', 'simplePaymentStatus']],
-    rent: [['Period', 'الفترة', 'month'], ['Landlord', 'المؤجر'], ['Amount', 'المبلغ', 'number'], ['Due Date', 'الاستحقاق', 'date'], ['Payment Date', 'تاريخ الدفع', 'date'], ['Payment Method', 'طريقة الدفع', 'paymentMethods'], ['Status', 'الحالة', 'rentStatus']]
+    rent: [['Period', 'الفترة', 'month'], ['Landlord', 'المؤجر'], ['Amount', 'المبلغ', 'number'], ['Due Date', 'الاستحقاق', 'date'], ['Payment Date', 'تاريخ الدفع', 'date'], ['Payment Method', 'طريقة الدفع', 'paymentMethods'], ['Status', 'الحالة', 'rentStatus']],
+    withdrawals: [['Withdrawal Date', 'التاريخ', 'date'], ['Amount', 'المبلغ', 'number'], ['Destination', 'الوجهة', 'withdrawalDestinations'], ['Description', 'البيان']]
   };
   function editRecord(ent, id, row) {
     if (!row) return;

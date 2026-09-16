@@ -6,7 +6,7 @@ var WC = {
   /** Product (white-label) identity. Per-customer branding lives in Settings (BRAND_*), see brand_(). */
   APP_NAME: 'Cafe Books',
   APP_NAME_AR: 'دفاتر الكافيه',
-  VERSION: '1.4.0',
+  VERSION: '1.5.0',
   /** The original Walif Coffee installation gets its branding seeded automatically (see seedWalifBrand_). */
   WALIF_SHEET_ID: '1HfsBDCDY5Wyy0A18fnG_VGYO0xYC9tjMMOkQN9e2nxQ',
   TZ: 'Asia/Muscat',
@@ -29,6 +29,7 @@ var WC = {
     EXPENSES: 'Expenses',
     PAYROLL: 'Payroll',
     RENT: 'Rent',
+    WITHDRAWALS: 'Cash_Withdrawals',
     USERS: 'Users',
     SETTINGS: 'Settings',
     AUDIT: 'Audit_Log',
@@ -59,6 +60,7 @@ var WC = {
     Expenses: ['Expense Date', 'Expense Type', 'Description', 'Amount', 'Payment Method', 'Payee', 'Payment Status', 'Attachment URL', 'Attachment ID'],
     Payroll: ['Employee', 'Month', 'Basic Salary', 'Allowance', 'Overtime', 'Deduction', 'Advance', 'Net Salary', 'Payment Date', 'Payment Method', 'Payment Status'],
     Rent: ['Period', 'Landlord', 'Amount', 'Due Date', 'Payment Date', 'Payment Method', 'Status', 'Attachment URL', 'Attachment ID'],
+    Cash_Withdrawals: ['Withdrawal Date', 'Amount', 'Destination', 'Description', 'Attachment URL', 'Attachment ID'],
     Users: ['Username', 'Role', 'Display Name', 'Status', 'Created At', 'Last Login', 'Must Change Password'],
     Settings: ['Key', 'Value', 'Description', 'Updated At', 'Updated By'],
     Audit_Log: ['Timestamp', 'User', 'Role', 'Action', 'Entity', 'Record ID', 'Details', 'Result'],
@@ -69,7 +71,11 @@ var WC = {
   PURCHASE_CATEGORIES: ['بن', 'حليب', 'أكواب وعبوات', 'مواد غذائية', 'مواد تنظيف', 'معدات', 'صيانة', 'مخزون آخر', 'مشتريات غير مخزنية'],
   INVENTORY_CATEGORIES: ['بن', 'حليب', 'أكواب وعبوات', 'مواد غذائية', 'مواد تنظيف', 'مخزون آخر'],
   EXPENSE_TYPES: ['كهرباء', 'ماء', 'إنترنت', 'توصيل', 'صيانة', 'تنظيف', 'تسويق', 'رسوم حكومية', 'مستلزمات', 'أخرى'],
-  PAYMENT_METHODS: ['نقد', 'بطاقة', 'تحويل بنكي', 'آجل'],
+  PAYMENT_METHODS: ['نقد', 'كاش مسحوب', 'بطاقة', 'تحويل بنكي', 'آجل'],
+  /** Paid out of cash that was already recorded as withdrawn: counts in P&L, never a second time in cash movement. */
+  PAID_FROM_WITHDRAWN: 'كاش مسحوب',
+  WITHDRAWAL_DESTINATIONS: ['إيداع في البنك', 'مصاريف', 'أخرى'],
+  WITHDRAWAL_TO_BANK: 'إيداع في البنك',
   PURCHASE_PAYMENT_STATUS: ['مدفوعة', 'مدفوعة جزئيًا', 'غير مدفوعة'],
   SIMPLE_PAYMENT_STATUS: ['مدفوع', 'غير مدفوع'],
   RENT_STATUS: ['مدفوع', 'مستحق', 'متأخر'],
@@ -102,4 +108,4 @@ var WC = {
 };
 
 /** Sheets that carry the common audit columns. */
-WC.ENTRY_SHEETS = [WC.SHEETS.PURCHASES, WC.SHEETS.EXPENSES, WC.SHEETS.PAYROLL, WC.SHEETS.RENT];
+WC.ENTRY_SHEETS = [WC.SHEETS.PURCHASES, WC.SHEETS.EXPENSES, WC.SHEETS.PAYROLL, WC.SHEETS.RENT, WC.SHEETS.WITHDRAWALS];

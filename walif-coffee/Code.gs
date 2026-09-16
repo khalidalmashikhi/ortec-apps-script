@@ -61,7 +61,8 @@ function api_bootstrap(token) {
       lists: {
         purchaseCategories: WC.PURCHASE_CATEGORIES, inventoryCategories: WC.INVENTORY_CATEGORIES,
         expenseTypes: WC.EXPENSE_TYPES, paymentMethods: WC.PAYMENT_METHODS,
-        purchasePaymentStatus: WC.PURCHASE_PAYMENT_STATUS, simplePaymentStatus: WC.SIMPLE_PAYMENT_STATUS, rentStatus: WC.RENT_STATUS
+        purchasePaymentStatus: WC.PURCHASE_PAYMENT_STATUS, simplePaymentStatus: WC.SIMPLE_PAYMENT_STATUS, rentStatus: WC.RENT_STATUS,
+        withdrawalDestinations: WC.WITHDRAWAL_DESTINATIONS, paidFromWithdrawn: WC.PAID_FROM_WITHDRAWN
       },
       limits: { attachmentBytes: WC.MAX_ATTACHMENT_BYTES, attachmentExt: WC.ALLOWED_ATTACHMENT_EXT },
       demoPasswordsActive: getSetting_('DEMO_PASSWORDS_ACTIVE') === 'true',

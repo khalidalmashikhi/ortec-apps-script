@@ -10,6 +10,7 @@ const keys = new Set();
 for (const f of ['Index.html', 'Login.html', 'Accountant.html', 'Dashboard.html']) {
   const html = read(f);
   const re = /data-i18n[^>]*>([^<]+)</g; let m; while ((m = re.exec(html))) keys.add(m[1].trim());
+  const rp = /data-i18n-ph[^>]*placeholder="([^"]+)"/g; while ((m = rp.exec(html))) keys.add(m[1].trim());
 }
 for (const f of ['Dashboard.html', 'Scripts.html']) {
   const src = read(f); const re = /\bt\('([^']+)'\)/g; let m; while ((m = re.exec(src))) keys.add(m[1]);
@@ -21,7 +22,7 @@ for (const f of fs.readdirSync(root).filter(x => x.endsWith('.gs'))) {
   const re = /throw new Error\('([^']+)'\)|error: '([^']+)'/g; while ((m = re.exec(src))) { const k = m[1] || m[2]; if (/[؀-ۿ]/.test(k)) keys.add(k); }
   if (f === 'Reports.gs' || f === 'Analytics.gs') { const re3 = /'([^']*[؀-ۿ][^']*)'/g; while ((m = re3.exec(src))) if (!/[+]/.test(m[1]) && m[1].length < 80) keys.add(m[1]); }
 }
-const PDF_ONLY = new Set(['ملف PDF — الرابط: ', 'تعذر تحميل المرفق — الرابط: ', 'يُدرج في PDF أول ', ' صورة فقط؛ الباقي بالروابط في الجدول.', ' — ', 'مشتريات', 'مصروف', 'إيجار', 'إيصالات بدون صورة داخل الملف (PDF أو مرفق غير صالح): ', 'لا توجد بيانات.', 'ملاحظات', '#', 'المؤشر', 'القيمة', 'عدد', 'أُنشئ في: ', ' (توقيت مسقط) — العملة: ', ' إلى ', 'مشتريات المخزون (', ') لا تُخصم هنا لأن تكلفة الجزء المباع مدرجة في تكلفة البضاعة المباعة.']);
+const PDF_ONLY = new Set(['ملف PDF — الرابط: ', 'تعذر تحميل المرفق — الرابط: ', 'يُدرج في PDF أول ', ' صورة فقط؛ الباقي بالروابط في الجدول.', ' — ', 'مشتريات', 'مصروف', 'إيجار', 'سحب كاش', 'إيصالات بدون صورة داخل الملف (PDF أو مرفق غير صالح): ', 'لا توجد بيانات.', 'ملاحظات', '#', 'المؤشر', 'القيمة', 'عدد', 'أُنشئ في: ', ' (توقيت مسقط) — العملة: ', ' إلى ', 'مشتريات المخزون (', ') لا تُخصم هنا لأن تكلفة الجزء المباع مدرجة في تكلفة البضاعة المباعة.']);
 const missing = [...keys].filter(k => EN[k] === undefined && k !== '' && !PDF_ONLY.has(k) && EN[k.replace(/:\s*$/, '')] === undefined);
 console.log('keys checked:', keys.size, 'missing:', missing.length);
 missing.forEach(k => console.log('  -', k));

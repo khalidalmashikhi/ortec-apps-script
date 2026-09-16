@@ -10,7 +10,7 @@ var WC_SOURCE_ = 'https://raw.githubusercontent.com/khalidalmashikhi/ortec-apps-
 var WC_FILES_ = [
   'appsscript.json',
   'Config.gs', 'Utils.gs', 'Code.gs', 'Setup.gs', 'Auth.gs', 'Audit.gs', 'SalesImport.gs', 'Attachments.gs', 'Purchases.gs',
-  'Expenses.gs', 'Payroll.gs', 'Rent.gs', 'Records.gs', 'Analytics.gs', 'Reports.gs', 'EmailReports.gs', 'Settings.gs', 'Deploy.gs', 'Tests.gs',
+  'Expenses.gs', 'Payroll.gs', 'Rent.gs', 'Withdrawals.gs', 'Records.gs', 'Analytics.gs', 'Reports.gs', 'EmailReports.gs', 'Settings.gs', 'Deploy.gs', 'Tests.gs',
   'Index.html', 'Login.html', 'Accountant.html', 'Dashboard.html', 'Styles.html', 'Scripts.html'
 ];
 

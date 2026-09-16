@@ -4,6 +4,7 @@
   <button data-tab="acc-expense" type="button"><span class="ic">💸</span><span data-i18n>مصروف</span></button>
   <button data-tab="acc-payroll" type="button"><span class="ic">👷</span><span data-i18n>راتب</span></button>
   <button data-tab="acc-rent" type="button"><span class="ic">🏠</span><span data-i18n>إيجار</span></button>
+  <button data-tab="acc-withdrawal" type="button"><span class="ic">💵</span><span data-i18n>سحب كاش</span></button>
   <button data-tab="acc-records" type="button"><span class="ic">📋</span><span data-i18n>سجلاتي</span></button>
 </div>
 
@@ -49,7 +50,7 @@
       <div class="field"><label data-i18n>الخصم</label><input name="discount" type="number" step="0.001" min="0" value="0"></div>
       <div class="field"><label data-i18n>المبلغ المدفوع *</label><input name="paidAmount" type="number" step="0.001" min="0" required value="0"></div>
       <div class="field"><label data-i18n>حالة الدفع</label><select name="paymentStatus" data-list="purchasePaymentStatus"></select></div>
-      <div class="field"><label data-i18n>مرفق الفاتورة (PDF/JPG/PNG)</label><input name="attachment" type="file" accept=".pdf,.jpg,.jpeg,.png"></div>
+      <div class="field"><label data-i18n>مرفق الفاتورة (PDF/JPG/PNG)</label><input name="attachment" type="file" accept="image/*,.pdf,.jpg,.jpeg,.png"></div>
     </div>
     <div class="grid cols-2" style="margin-bottom:.7rem">
       <div class="total-box"><span data-i18n>إجمالي الفاتورة</span><span class="num" id="purTotal">0.000</span></div>
@@ -73,11 +74,29 @@
       <div class="field"><label data-i18n>طريقة الدفع *</label><select name="paymentMethod" data-list="paymentMethods" required></select></div>
       <div class="field"><label data-i18n>حالة الدفع *</label><select name="paymentStatus" data-list="simplePaymentStatus" required></select></div>
       <div class="field"><label data-i18n>اسم المستفيد</label><input name="payee" maxlength="120"></div>
-      <div class="field"><label data-i18n>مرفق (اختياري)</label><input name="attachment" type="file" accept=".pdf,.jpg,.jpeg,.png"></div>
+      <div class="field"><label data-i18n>مرفق / صورة الفاتورة (اختياري)</label><input name="attachment" type="file" accept="image/*,.pdf,.jpg,.jpeg,.png"></div>
     </div>
     <div class="field"><label data-i18n>البيان *</label><input name="description" required maxlength="500"></div>
     <div class="field"><label data-i18n>ملاحظات</label><textarea name="notes" maxlength="1000"></textarea></div>
     <button class="btn" type="submit" data-i18n>حفظ المصروف</button>
+  </form>
+</section>
+
+<!-- ============ Cash withdrawal ============ -->
+<section id="acc-withdrawal" class="acc-tab hidden">
+  <form class="card" id="withdrawalForm">
+    <h2 data-i18n>سحب كاش من الصندوق</h2>
+    <p class="muted" data-i18n>سجّل أي كاش يُسحب من الصندوق: إيداع في البنك، أو للمصاريف، أو غير ذلك. صوّر إيصال الإيداع أو الفاتورة إن وُجد.</p>
+    <div class="grid cols-3">
+      <div class="field"><label data-i18n>التاريخ *</label><input name="withdrawalDate" type="date" required></div>
+      <div class="field"><label data-i18n>المبلغ *</label><input name="amount" type="number" step="0.001" min="0.001" required></div>
+      <div class="field"><label data-i18n>إلى أين ذهب؟ *</label><select name="destination" data-list="withdrawalDestinations" required></select></div>
+      <div class="field"><label data-i18n>صورة / مرفق (اختياري)</label><input name="attachment" type="file" accept="image/*,.pdf,.jpg,.jpeg,.png"></div>
+    </div>
+    <div class="field"><label data-i18n>البيان *</label><input name="description" required maxlength="500" data-i18n-ph placeholder="مثال: إيداع في بنك مسقط / شراء مستلزمات من الكاش"></div>
+    <div class="field"><label data-i18n>ملاحظات</label><textarea name="notes" maxlength="1000"></textarea></div>
+    <div class="alert info" data-i18n>ما يُدفع لاحقًا من هذا الكاش (مصروف أو فاتورة) سجّله بطريقة الدفع «كاش مسحوب» حتى لا يُخصم من النقد مرتين.</div>
+    <button class="btn" type="submit" data-i18n>حفظ السحب</button>
   </form>
 </section>
 
@@ -115,7 +134,7 @@
       <div class="field"><label data-i18n>الحالة *</label><select name="status" data-list="rentStatus" required></select></div>
       <div class="field"><label data-i18n>تاريخ الدفع</label><input name="paymentDate" type="date"></div>
       <div class="field"><label data-i18n>طريقة الدفع</label><select name="paymentMethod" data-list="paymentMethods"></select></div>
-      <div class="field"><label data-i18n>مرفق (اختياري)</label><input name="attachment" type="file" accept=".pdf,.jpg,.jpeg,.png"></div>
+      <div class="field"><label data-i18n>مرفق (اختياري)</label><input name="attachment" type="file" accept="image/*,.pdf,.jpg,.jpeg,.png"></div>
     </div>
     <div class="field"><label data-i18n>ملاحظات</label><textarea name="notes" maxlength="1000"></textarea></div>
     <button class="btn" type="submit" data-i18n>حفظ الإيجار</button>
@@ -126,7 +145,7 @@
 <section id="acc-records" class="acc-tab hidden">
   <div class="card">
     <div class="section-title"><h2 data-i18n>السجلات التي أدخلتها</h2>
-      <div class="row"><select id="recEntity" style="width:auto"><option value="purchases" data-i18n>المشتريات</option><option value="expenses" data-i18n>المصروفات</option><option value="payroll" data-i18n>الرواتب</option><option value="rent" data-i18n>الإيجارات</option></select>
+      <div class="row"><select id="recEntity" style="width:auto"><option value="purchases" data-i18n>المشتريات</option><option value="expenses" data-i18n>المصروفات</option><option value="payroll" data-i18n>الرواتب</option><option value="rent" data-i18n>الإيجارات</option><option value="withdrawals" data-i18n>الكاش المسحوب</option></select>
       <button class="btn sm secondary" id="btnLoadRecords" type="button" data-i18n>عرض</button></div>
     </div>
     <div class="tbl-wrap" id="recordsTableWrap"></div>

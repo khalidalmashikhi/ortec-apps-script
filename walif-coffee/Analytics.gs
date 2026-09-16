@@ -53,6 +53,7 @@ function computeFinancials_(from, to, salesFilters) {
   });
   var payroll = pick_(payrollAll, function (r) { return r._d; }, from, to);
   var rent = pick_(rentAll, function (r) { return r._d; }, from, to);
+  var withdrawals = pick_(activeRows_(WC.SHEETS.WITHDRAWALS), function (r) { return dateCell_(r['Withdrawal Date']); }, from, to);
 
   var receipts = {};
   sales.forEach(function (r) { receipts[String(r['Receipt number'])] = true; });
@@ -80,7 +81,19 @@ function computeFinancials_(from, to, salesFilters) {
 
   var operatingExpenses = round3_(expensesTotal + payrollTotal + rentTotal);
   var operatingProfit = round3_(grossProfit - operatingExpenses);
-  var netCash = round3_(netSales - purchasesPaid - expensesPaid - payrollPaid - rentPaid);
+
+  // Cash withdrawals: deposits to the bank are internal transfers; the rest left the business.
+  var isBank = function (r) { return String(r.Destination) === WC.WITHDRAWAL_TO_BANK; };
+  var withdrawalsTotal = sumBy_(withdrawals, 'Amount');
+  var withdrawalsToBank = sumBy_(withdrawals.filter(isBank), 'Amount');
+  var withdrawalsOut = round3_(withdrawalsTotal - withdrawalsToBank);
+  // Anything paid out of already-withdrawn cash must not reduce the cash movement twice.
+  var fromW = function (r) { return String(r['Payment Method']) === WC.PAID_FROM_WITHDRAWN; };
+  var paidFromWithdrawn = round3_(sumBy_(purchases.filter(fromW), 'Paid Amount') +
+    sumBy_(expenses.filter(function (r) { return fromW(r) && String(r['Payment Status']) === 'مدفوع'; }), 'Amount') +
+    sumBy_(payroll.filter(function (r) { return fromW(r) && r._paid; }), 'Net Salary') +
+    sumBy_(rent.filter(function (r) { return fromW(r) && r._paid; }), 'Amount'));
+  var netCash = round3_(netSales - purchasesPaid - expensesPaid - payrollPaid - rentPaid + paidFromWithdrawn - withdrawalsOut);
 
   return {
     from: from, to: to,
@@ -92,11 +105,12 @@ function computeFinancials_(from, to, salesFilters) {
       purchasesPaid: purchasesPaid, purchasesUnpaid: purchasesUnpaid,
       expenses: expensesTotal, expensesPaid: expensesPaid, payroll: payrollTotal, payrollPaid: payrollPaid, rent: rentTotal, rentPaid: rentPaid,
       operatingExpenses: operatingExpenses, operatingProfit: operatingProfit, netCash: netCash,
+      withdrawals: withdrawalsTotal, withdrawalsToBank: withdrawalsToBank, withdrawalsOut: withdrawalsOut, paidFromWithdrawn: paidFromWithdrawn,
       receipts: receiptCount, avgReceipt: receiptCount ? round3_(netSales / receiptCount) : 0,
       quantity: sumBy_(sales, 'Quantity'), rows: sales.length,
       refunds: round3_(sales.filter(function (r) { return r['Receipt type'] === 'Refund'; }).reduce(function (t, r) { return t + r['Net sales']; }, 0))
     },
-    _sales: sales, _purchases: purchases, _expenses: expenses, _payroll: payroll, _rent: rent
+    _sales: sales, _purchases: purchases, _expenses: expenses, _payroll: payroll, _rent: rent, _withdrawals: withdrawals
   };
 }
 
@@ -157,6 +171,8 @@ function costBreakdowns_(fin) {
     purchasesByCategory: mapToSortedArray_(groupSum_(fin._purchases, 'Category', 'Total'), 'category', 'total'),
     expensesByType: mapToSortedArray_(groupSum_(fin._expenses, 'Expense Type', 'Amount'), 'type', 'amount'),
     payrollByMonth: Object.keys(payrollByMonth).sort().map(function (m) { return { month: m, amount: payrollByMonth[m] }; }),
+    withdrawalsByDestination: mapToSortedArray_(groupSum_(fin._withdrawals, 'Destination', 'Amount'), 'destination', 'amount'),
+    withdrawalsList: fin._withdrawals.slice().sort(function (a, b) { return dateCell_(b['Withdrawal Date']) < dateCell_(a['Withdrawal Date']) ? -1 : 1; }).map(function (r) { return { id: r['Internal ID'], date: dateCell_(r['Withdrawal Date']), amount: toNum_(r.Amount), destination: String(r.Destination), description: String(r.Description || ''), url: String(r['Attachment URL'] || ''), by: String(r['Created By'] || '') }; }),
     rentList: fin._rent.map(function (r) { return { id: r['Internal ID'], period: r.Period, landlord: r.Landlord, amount: toNum_(r.Amount), dueDate: dateCell_(r['Due Date']), paymentDate: dateCell_(r['Payment Date']), status: r.Status }; }),
     expensesByDay: expByDay, purchasesPaidByDay: purByDay, payrollByDay: payByDay, rentByDay: rentByDay
   };
@@ -239,10 +255,11 @@ function api_getDashboard(token, filters) {
     var cb = costBreakdowns_(fin);
     var cmp = comparisonSeries_(fin, sb, cb);
     delete cb.expensesByDay; delete cb.purchasesPaidByDay; delete cb.payrollByDay; delete cb.rentByDay;
+    cb.withdrawalsList = cb.withdrawalsList.slice(0, 50);
     var out = {
       ok: true, range: range, kpis: fin.kpis, bank: bankBalance_(), sales: sb, costs: cb, comparison: cmp,
       options: filterOptions_(),
-      note: 'شراء المخزون يؤثر على النقد عند دفعه، بينما تكلفة الجزء المباع منه فقط تظهر في الربح من خلال Cost of goods القادمة من Loyverse. لذلك لا تُخصم فواتير المخزون مرة ثانية من صافي الربح.',
+      note: 'شراء المخزون يؤثر على النقد عند دفعه، بينما تكلفة الجزء المباع منه فقط تظهر في الربح من خلال Cost of goods القادمة من Loyverse. لذلك لا تُخصم فواتير المخزون مرة ثانية من صافي الربح. الكاش المسحوب للإيداع في البنك تحويل داخلي لا يغيّر الرصيد، والمسحوب للمصاريف يُخصم مرة واحدة؛ لذلك سجّل ما يُدفع منه بطريقة الدفع "كاش مسحوب".',
       demoPasswordsActive: getSetting_('DEMO_PASSWORDS_ACTIVE') === 'true'
     };
     delete out.sales.byItem;

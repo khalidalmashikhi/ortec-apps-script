@@ -7,11 +7,12 @@ var EDITABLE_FIELDS_ = {
   Purchases: ['Invoice Number', 'Invoice Date', 'Supplier', 'Category', 'Description', 'Subtotal', 'Tax', 'Discount', 'Paid Amount', 'Payment Method', 'Payment Status', 'Is Inventory', 'Notes'],
   Expenses: ['Expense Date', 'Expense Type', 'Description', 'Amount', 'Payment Method', 'Payee', 'Payment Status', 'Notes'],
   Payroll: ['Employee', 'Month', 'Basic Salary', 'Allowance', 'Overtime', 'Deduction', 'Advance', 'Payment Date', 'Payment Method', 'Payment Status', 'Notes'],
-  Rent: ['Period', 'Landlord', 'Amount', 'Due Date', 'Payment Date', 'Payment Method', 'Status', 'Notes']
+  Rent: ['Period', 'Landlord', 'Amount', 'Due Date', 'Payment Date', 'Payment Method', 'Status', 'Notes'],
+  Cash_Withdrawals: ['Withdrawal Date', 'Amount', 'Destination', 'Description', 'Notes']
 };
 
 function entitySheet_(entity) {
-  var map = { purchases: WC.SHEETS.PURCHASES, expenses: WC.SHEETS.EXPENSES, payroll: WC.SHEETS.PAYROLL, rent: WC.SHEETS.RENT, sales: WC.SHEETS.SALES_RAW };
+  var map = { purchases: WC.SHEETS.PURCHASES, expenses: WC.SHEETS.EXPENSES, payroll: WC.SHEETS.PAYROLL, rent: WC.SHEETS.RENT, withdrawals: WC.SHEETS.WITHDRAWALS, sales: WC.SHEETS.SALES_RAW };
   var name = map[String(entity || '').toLowerCase()];
   if (!name) throw new Error('نوع السجل غير معروف.');
   return name;
@@ -101,6 +102,8 @@ function revalidateRecord_(sheet, m) {
   if (sheet === WC.SHEETS.RENT) return validateRent_({
     period: m.Period, landlord: m.Landlord, amount: m.Amount, dueDate: toDate(m['Due Date']), paymentDate: toDate(m['Payment Date']),
     paymentMethod: m['Payment Method'], status: m.Status, notes: m.Notes });
+  if (sheet === WC.SHEETS.WITHDRAWALS) return validateWithdrawal_({
+    withdrawalDate: toDate(m['Withdrawal Date']), amount: m.Amount, destination: m.Destination, description: m.Description, notes: m.Notes });
   throw new Error('غير مدعوم.');
 }
 

@@ -58,7 +58,7 @@ function ensureAllSheets_() {
   var ss = ss_();
   var created = [];
   var order = [WC.SHEETS.DASHBOARD, WC.SHEETS.SALES_RAW, WC.SHEETS.SALES_IMPORTS, WC.SHEETS.PURCHASES, WC.SHEETS.EXPENSES,
-    WC.SHEETS.PAYROLL, WC.SHEETS.RENT, WC.SHEETS.USERS, WC.SHEETS.SETTINGS, WC.SHEETS.AUDIT, WC.SHEETS.ERRORS];
+    WC.SHEETS.PAYROLL, WC.SHEETS.RENT, WC.SHEETS.WITHDRAWALS, WC.SHEETS.USERS, WC.SHEETS.SETTINGS, WC.SHEETS.AUDIT, WC.SHEETS.ERRORS];
   order.forEach(function (name) {
     var sh = ss.getSheetByName(name);
     var headers = sheetHeaders_(name);

@@ -44,7 +44,7 @@ const OUT = path.join(__dirname, '..', 'tests', 'screenshots'); fs.mkdirSync(OUT
     await page.fill('#loginPass', '1234'); await page.click('#loginBtn');
     await page.waitForSelector('#view-accountant:not(.hidden)');
     if (!(await page.locator('#view-manager').evaluate(e => e.classList.contains('hidden')))) throw new Error('manager view visible to accountant');
-    if (await page.locator('#accTabs button').count() !== 6) throw new Error('tabs');
+    if (await page.locator('#accTabs button').count() !== 7) throw new Error('tabs');
     await page.screenshot({ path: OUT + '/02-accountant-mobile.png', fullPage: true });
   });
   await step('CSV preview + import', async () => {
@@ -96,7 +96,20 @@ const OUT = path.join(__dirname, '..', 'tests', 'screenshots'); fs.mkdirSync(OUT
     const t = await page.locator('#recordsTableWrap').innerText(); if (!t.includes('UI-1') || !t.includes('📎')) throw new Error(t);
     await page.screenshot({ path: OUT + '/04-records-mobile.png', fullPage: true });
   });
-  await step('English mode inside the app translates tabs, forms and stored values', async () => {
+    await step('cash withdrawal form (with camera button) + shows in my records', async () => {
+    await page.click('#accTabs button[data-tab=acc-withdrawal]');
+    const f = page.locator('#withdrawalForm');
+    if (!(await f.locator('.cam-btn').count())) throw new Error('camera button missing');
+    if ((await f.locator('[name=withdrawalDate]').inputValue()) === '') throw new Error('date not defaulted');
+    await f.locator('[name=amount]').fill('40'); await f.locator('[name=destination]').selectOption('إيداع في البنك'); await f.locator('[name=description]').fill('إيداع بنك مسقط');
+    await page.screenshot({ path: OUT + '/04b-withdrawal.png' });
+    await f.locator('button[type=submit]').click(); await page.waitForSelector('.toast.ok');
+    await page.click('#accTabs button[data-tab=acc-records]'); await page.selectOption('#recEntity', 'withdrawals'); await page.click('#btnLoadRecords');
+    await page.waitForFunction(() => /إيداع في البنك/.test(document.querySelector('#recordsTableWrap').innerText), null, { timeout: 10000 });
+    const txt = await page.locator('#recordsTableWrap').innerText(); if (!txt.includes('40.000')) throw new Error('withdrawal row missing: ' + txt.slice(0, 200));
+    await page.selectOption('#recEntity', 'purchases'); await page.click('#btnLoadRecords'); await page.waitForFunction(() => /المورد/.test(document.querySelector('#recordsTableWrap').innerText), null, { timeout: 10000 });
+  });
+await step('English mode inside the app translates tabs, forms and stored values', async () => {
     await page.click('#btnLangApp'); await page.waitForTimeout(150);
     const tabs = await page.locator('#accTabs').innerText(); if (!/Sales upload/.test(tabs) || /رفع/.test(tabs)) throw new Error('tabs: ' + tabs);
     await page.click('#accTabs button[data-tab=acc-purchase]');
@@ -115,7 +128,7 @@ const OUT = path.join(__dirname, '..', 'tests', 'screenshots'); fs.mkdirSync(OUT
   await step('admin/2026 logs in, dashboard renders KPIs + demo warning', async () => {
     await page.goto(BASE); await page.fill('#loginUser', 'admin'); await page.fill('#loginPass', '2026'); await page.click('#loginBtn');
     await page.waitForSelector('#view-manager:not(.hidden)'); await page.waitForSelector('#kpis .kpi');
-    if (await page.locator('#kpis .kpi').count() !== 14) throw new Error('14 KPI cards expected');
+    if (await page.locator('#kpis .kpi').count() !== 15) throw new Error('15 KPI cards expected');
     if (await page.locator('#demoWarning').evaluate(e => e.classList.contains('hidden'))) throw new Error('demo warning missing');
     const note = await page.locator('#dashNote').innerText(); if (!note.includes('Cost of goods')) throw new Error('note');
     await page.screenshot({ path: OUT + '/05-dashboard-desktop.png', fullPage: true });

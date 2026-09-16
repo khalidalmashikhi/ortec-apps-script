@@ -178,6 +178,36 @@ test('dashboard numbers for 2026-09-13..15', () => {
   assert.ok(k.netCash < k.operatingProfit, 'cash lower than profit because inventory was bought');
   assert.ok(/Cost of goods/.test(dash.note));
 });
+test('cash withdrawals: bank deposit is a transfer, expenses leave once, "كاش مسحوب" never double-counts', () => {
+  const D = () => ok(G.api_getDashboard(mgr.token, { preset: 'custom', from: '2026-09-13', to: TODAY }));
+  const base = D().kpis;
+  const w1 = ok(G.api_addWithdrawal(acc.token, { withdrawalDate: '2026-09-14', amount: 50, destination: 'إيداع في البنك', description: 'إيداع بنك مسقط' }, png)); assert.ok(w1.attachmentUrl);
+  const w2 = ok(G.api_addWithdrawal(acc.token, { withdrawalDate: '2026-09-15', amount: 20, destination: 'مصاريف', description: 'كاش للمصاريف' }, null));
+  assert.ok(!G.api_addWithdrawal(acc.token, { withdrawalDate: '2099-01-01', amount: 5, destination: 'مصاريف', description: 'x' }).ok, 'future date');
+  assert.ok(!G.api_addWithdrawal(acc.token, { withdrawalDate: '2026-09-15', amount: 5, destination: 'بنك', description: 'x' }).ok, 'bad destination');
+  assert.ok(!G.api_addWithdrawal(acc.token, { withdrawalDate: '2026-09-15', amount: 0, destination: 'مصاريف', description: 'x' }).ok, 'zero amount');
+  assert.ok(!G.api_addWithdrawal(acc.token, { withdrawalDate: '2026-09-15', amount: 5, destination: 'مصاريف', description: '' }).ok, 'description required');
+  let k = D().kpis;
+  assert.strictEqual(k.withdrawals, 70); assert.strictEqual(k.withdrawalsToBank, 50); assert.strictEqual(k.withdrawalsOut, 20);
+  assert.strictEqual(k.netCash, G.round3_(base.netCash - 20), 'only the non-bank part leaves the business');
+  assert.strictEqual(k.operatingProfit, base.operatingProfit, 'a withdrawal is not an expense');
+  // an expense paid out of the withdrawn cash: in P&L, not deducted from cash again
+  const e = ok(G.api_addExpense(acc.token, { expenseDate: '2026-09-15', expenseType: 'مستلزمات', description: 'أكياس', amount: 8, paymentMethod: 'كاش مسحوب', paymentStatus: 'مدفوع' }, null)).id;
+  k = D().kpis;
+  assert.strictEqual(k.paidFromWithdrawn, 8); assert.strictEqual(k.expenses, G.round3_(base.expenses + 8));
+  assert.strictEqual(k.netCash, G.round3_(base.netCash - 20)); assert.strictEqual(k.operatingProfit, G.round3_(base.operatingProfit - 8));
+  // lists, dashboard table, reports, receipts archive
+  const mine = ok(G.api_listWithdrawals(acc.token, {})).rows; assert.strictEqual(mine.length, 2); assert.strictEqual(mine[0].Destination, 'مصاريف'); assert.strictEqual(mine[1]['Attachment URL'] !== '', true);
+  assert.strictEqual(D().costs.withdrawalsList.length, 2);
+  const cf = ok(G.api_getReportData(mgr.token, 'cashflow', '2026-09-13', TODAY)).report;
+  assert.ok(cf.sections.some(x => x.title === 'الكاش المسحوب')); assert.ok(cf.kpis.some(x => x[0].indexOf('إيداع في البنك') >= 0 && x[1] === 50));
+  assert.strictEqual(ok(G.api_getReportData(mgr.token, 'receipts', '2026-09-13', TODAY)).report.sections[0].rows.length, 2, 'withdrawal photo is in the receipts archive');
+  // manager edit + cancel; accountant cannot cancel
+  ok(G.api_updateRecord(mgr.token, 'withdrawals', w2.id, { Amount: 25 }, 'تصحيح')); assert.strictEqual(D().kpis.withdrawalsOut, 25);
+  assert.ok(!G.api_cancelRecord(acc.token, 'withdrawals', w2.id, 'x').ok);
+  ok(G.api_cancelRecord(mgr.token, 'withdrawals', w1.id, 'تجربة')); ok(G.api_cancelRecord(mgr.token, 'withdrawals', w2.id, 'تجربة')); ok(G.api_cancelRecord(mgr.token, 'expenses', e, 'تجربة'));
+  k = D().kpis; assert.strictEqual(k.withdrawals, 0); assert.strictEqual(k.netCash, base.netCash); assert.strictEqual(k.operatingProfit, base.operatingProfit);
+});
 test('breakdowns present', () => {
   assert.strictEqual(dash.sales.daily.length, 3);
   assert.strictEqual(dash.sales.topItems[0].item, 'Iced Latte');
@@ -198,7 +228,7 @@ test('cancelled record leaves the numbers', () => {
   const r = ok(G.api_getDashboard(mgr.token, { preset: 'custom', from: '2026-09-13', to: TODAY }));
   assert.strictEqual(r.kpis.expenses, 7);
   const again = G.api_cancelRecord(mgr.token, 'expenses', expenseId, 'x'); assert.ok(!again.ok);
-  const list = ok(G.api_listExpenses(mgr.token, { status: 'CANCELLED' })); assert.strictEqual(list.rows.length, 1); assert.strictEqual(list.rows[0]['Cancel Reason'], 'خطأ في الإدخال');
+  const list = ok(G.api_listExpenses(mgr.token, { status: 'CANCELLED' })); assert.strictEqual(list.rows.filter(x => x['Internal ID'] === expenseId).length, 1); assert.strictEqual(list.rows.filter(x => x['Internal ID'] === expenseId)[0]['Cancel Reason'], 'خطأ في الإدخال');
 });
 test('update record with reason re-validates', () => {
   ok(G.api_updateRecord(mgr.token, 'payroll', payrollId, { Deduction: 0 }, 'تصحيح الخصم'));

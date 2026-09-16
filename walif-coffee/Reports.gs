@@ -26,7 +26,7 @@ function kpiRows_(k) {
     ['تكلفة البضاعة المباعة', k.cogs], ['مجمل الربح', k.grossProfit], ['هامش مجمل الربح %', k.grossMargin],
     ['المشتريات المدفوعة', k.purchasesPaid], ['مشتريات المخزون (إجمالي الفواتير)', k.inventoryPurchases],
     ['المصروفات', k.expenses], ['الرواتب المدفوعة', k.payrollPaid], ['الإيجار المدفوع', k.rentPaid],
-    ['صافي الربح التشغيلي', k.operatingProfit], ['صافي الحركة النقدية', k.netCash],
+    ['صافي الربح التشغيلي', k.operatingProfit], ['كاش مسحوب', k.withdrawals], ['صافي الحركة النقدية', k.netCash],
     ['عدد الفواتير', k.receipts], ['متوسط الفاتورة', k.avgReceipt]
   ];
 }
@@ -100,11 +100,13 @@ function buildReport_(type, from, to) {
       rep.sections.push({ title: 'المصروفات حسب النوع', headers: ['النوع', 'المبلغ'], rows: cb.expensesByType.map(function (e) { return [e.type, money(e.amount)]; }) });
       break;
     case 'cashflow':
-      rep.kpis = [['صافي المبيعات (داخل)', k.netSales], ['المشتريات المدفوعة', k.purchasesPaid], ['المصروفات المدفوعة', k.expensesPaid], ['الرواتب المدفوعة', k.payrollPaid], ['الإيجار المدفوع', k.rentPaid], ['صافي الحركة النقدية', k.netCash],
+      rep.kpis = [['صافي المبيعات (داخل)', k.netSales], ['المشتريات المدفوعة', k.purchasesPaid], ['المصروفات المدفوعة', k.expensesPaid], ['الرواتب المدفوعة', k.payrollPaid], ['الإيجار المدفوع', k.rentPaid],
+        ['كاش مسحوب — إيداع في البنك (تحويل داخلي)', k.withdrawalsToBank], ['كاش مسحوب — مصاريف وأخرى', k.withdrawalsOut], ['مدفوع من الكاش المسحوب (لا يُخصم مرة ثانية)', k.paidFromWithdrawn], ['صافي الحركة النقدية', k.netCash],
         ['للمقارنة: صافي الربح المحاسبي', k.operatingProfit], ['الفرق (نقد − ربح)', round3_(k.netCash - k.operatingProfit)]];
       var bank2 = bankBalance_();
       if (bank2.configured) rep.kpis.push(['رصيد الحساب البنكي (حتى ' + bank2.asOf + ')', bank2.balance]);
       rep.sections.push({ title: 'المشتريات حسب المورد', headers: ['المورد', 'الإجمالي'], rows: cb.purchasesBySupplier.map(function (s) { return [s.supplier, money(s.total)]; }) });
+      if (cb.withdrawalsList.length) rep.sections.push({ title: 'الكاش المسحوب', headers: ['التاريخ', 'المبلغ', 'الوجهة', 'البيان', 'أدخله'], rows: cb.withdrawalsList.map(function (w) { return [w.date, money(w.amount), w.destination, w.description, w.by]; }) });
       break;
     case 'receipts':
       var receipts = collectReceipts_(fin);
@@ -125,6 +127,7 @@ function collectReceipts_(fin) {
   var out = [];
   fin._purchases.forEach(function (r) { if (r['Attachment ID']) out.push({ date: dateCell_(r['Invoice Date']), kind: 'مشتريات', party: String(r.Supplier || ''), amount: toNum_(r.Total), description: String(r.Description || r['Invoice Number'] || ''), fileId: String(r['Attachment ID']), url: String(r['Attachment URL'] || '') }); });
   fin._expenses.forEach(function (r) { if (r['Attachment ID']) out.push({ date: dateCell_(r['Expense Date']), kind: 'مصروف', party: String(r.Payee || r['Expense Type'] || ''), amount: toNum_(r.Amount), description: String(r.Description || ''), fileId: String(r['Attachment ID']), url: String(r['Attachment URL'] || '') }); });
+  fin._withdrawals.forEach(function (r) { if (r['Attachment ID']) out.push({ date: dateCell_(r['Withdrawal Date']), kind: 'سحب كاش', party: String(r.Destination || ''), amount: toNum_(r.Amount), description: String(r.Description || ''), fileId: String(r['Attachment ID']), url: String(r['Attachment URL'] || '') }); });
   fin._rent.forEach(function (r) { if (r['Attachment ID']) out.push({ date: r._d, kind: 'إيجار', party: String(r.Landlord || ''), amount: toNum_(r.Amount), description: String(r.Period || ''), fileId: String(r['Attachment ID']), url: String(r['Attachment URL'] || '') }); });
   out.sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
   return out;
