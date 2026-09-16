@@ -31,8 +31,8 @@ const OUT = process.argv[2] || path.join(__dirname, '..', 'docs'); fs.mkdirSync(
   await page.click('#btnImportCsv'); await page.click('#mOk'); await page.waitForSelector('#csvResult:not(.hidden)');
   await page.click('#accTabs button[data-tab=acc-purchase]');
   const f = page.locator('#purchaseForm');
-  await f.locator('[name=invoiceNumber]').fill('A-1042'); await f.locator('[name=invoiceDate]').fill('2026-09-14'); await f.locator('[name=supplier]').fill('شركة البن العماني');
-  await f.locator('[name=subtotal]').fill('38.5'); await f.locator('[name=tax]').fill('1.925'); await f.locator('[name=paidAmount]').fill('40.425');
+  await f.locator('[name=description]').fill('بن عماني 10 كيلو'); await f.locator('[name=invoiceDate]').fill('2026-09-14'); await f.locator('[name=subtotal]').fill('40.425');
+  await f.locator('.seg button[data-v="تحويل بنكي"]').click();
   await page.screenshot({ path: OUT + '/m-purchase.png', clip: { x: 0, y: 0, width: 390, height: 844 } });
   // create the entries through the API (faster and deterministic)
   const api = async (name, args) => (await (await fetch(BASE + '/api', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name, args }) })).json()).result;

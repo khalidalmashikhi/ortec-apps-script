@@ -56,6 +56,14 @@ textarea{min-height:70px;resize:vertical}
 .kpi{background:var(--white);border-radius:12px;padding:.75rem .9rem;box-shadow:var(--shadow);border-inline-start:4px solid var(--cream-2)}
 .kpi .l{font-size:.8rem;color:var(--muted)} .kpi .v{font-size:1.25rem;font-weight:800;color:var(--brand);margin-top:.15rem}
 .kpi.good{border-inline-start-color:var(--green)} .kpi.bad{border-inline-start-color:var(--red)} .kpi.accent{border-inline-start-color:var(--gold)}
+/* ---- segmented choice + collapsible details ---- */
+.seg{display:flex;gap:.5rem}
+.seg button{flex:1;border:2px solid var(--line);background:var(--white);border-radius:12px;padding:.7rem .6rem;font:inherit;font-weight:700;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.4rem;font-size:1rem}
+.seg button.active{border-color:var(--brand);background:var(--brand);color:var(--cream)}
+details.adv{margin:.2rem 0 .9rem;border:1px dashed var(--line);border-radius:12px;padding:.4rem .8rem}
+details.adv summary{cursor:pointer;color:var(--brand-2);font-weight:700;padding:.3rem 0;list-style:none}
+details.adv summary::before{content:'▸ ';font-size:.8em} details.adv[open] summary::before{content:'▾ '}
+details.adv[open]{padding-bottom:.6rem}
 /* ---- bank balance ---- */
 .bank-card{background:linear-gradient(135deg,var(--brand),var(--brand-2,var(--brand)));color:#fff;border-radius:14px;padding:.9rem 1.1rem;margin-bottom:.8rem;box-shadow:var(--shadow);display:flex;flex-wrap:wrap;align-items:baseline;gap:.2rem 1rem}
 .bank-card .l{font-size:.85rem;opacity:.9;flex-basis:100%} .bank-card .v{font-size:1.7rem;font-weight:800} .bank-card .s{font-size:.78rem;color:rgba(255,255,255,.85)}

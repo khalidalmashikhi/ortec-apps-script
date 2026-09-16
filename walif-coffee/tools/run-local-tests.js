@@ -178,6 +178,26 @@ test('dashboard numbers for 2026-09-13..15', () => {
   assert.ok(k.netCash < k.operatingProfit, 'cash lower than profit because inventory was bought');
   assert.ok(/Cost of goods/.test(dash.note));
 });
+test('simple entry: description + amount + cash/bank is enough (defaults fill the rest)', () => {
+  const D = () => ok(G.api_getDashboard(mgr.token, { preset: 'custom', from: '2026-09-13', to: TODAY })).kpis;
+  const base = D();
+  const p = ok(G.api_addPurchase(acc.token, { description: 'بن 5 كيلو', subtotal: 12, paymentMethod: 'تحويل بنكي' }, null));
+  const prow = ok(G.api_listPurchases(mgr.token, {})).rows.find(x => x['Internal ID'] === p.id);
+  assert.ok(/^AUTO-/.test(prow['Invoice Number'])); assert.strictEqual(prow.Supplier, 'غير محدد'); assert.strictEqual(prow.Category, 'مخزون آخر'); assert.strictEqual(prow['Is Inventory'], 'نعم');
+  assert.strictEqual(prow.Total, 12); assert.strictEqual(prow['Paid Amount'], 12); assert.strictEqual(prow['Payment Status'], 'مدفوعة'); assert.strictEqual(G.dateCell_(prow['Invoice Date']), TODAY);
+  const e = ok(G.api_addExpense(acc.token, { description: 'فاتورة الكهرباء', amount: 5, paymentMethod: 'نقد' }, null));
+  const erow = ok(G.api_listExpenses(mgr.token, {})).rows.find(x => x['Internal ID'] === e.id);
+  assert.strictEqual(erow['Expense Type'], 'أخرى'); assert.strictEqual(erow['Payment Status'], 'مدفوع'); assert.strictEqual(G.dateCell_(erow['Expense Date']), TODAY);
+  // "amount" alias for purchases; description still required when nothing identifies the purchase
+  ok(G.api_addPurchase(acc.token, { description: 'أكواب', amount: 3 }, null));
+  let r = G.api_addPurchase(acc.token, { subtotal: 3 }, null); assert.ok(!r.ok && /اشتريت/.test(r.error));
+  r = G.api_addExpense(acc.token, { amount: 3 }, null); assert.ok(!r.ok && /المصروف/.test(r.error));
+  const k = D(); assert.strictEqual(k.inventoryPurchases, G.round3_(base.inventoryPurchases + 15)); assert.strictEqual(k.expenses, G.round3_(base.expenses + 5));
+  // clean up so the exact-number tests below keep their baseline
+  ok(G.api_listPurchases(mgr.token, {})).rows.filter(x => /^AUTO-/.test(x['Invoice Number'])).forEach(x => ok(G.api_cancelRecord(mgr.token, 'purchases', x['Internal ID'], 'اختبار')));
+  ok(G.api_cancelRecord(mgr.token, 'expenses', e.id, 'اختبار'));
+  assert.strictEqual(D().inventoryPurchases, base.inventoryPurchases);
+});
 test('cash withdrawals: bank deposit is a transfer, expenses leave once, "كاش مسحوب" never double-counts', () => {
   const D = () => ok(G.api_getDashboard(mgr.token, { preset: 'custom', from: '2026-09-13', to: TODAY }));
   const base = D().kpis;

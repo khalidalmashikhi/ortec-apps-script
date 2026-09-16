@@ -2,28 +2,34 @@
  * Purchase invoices.
  */
 
+/**
+ * Simple entry: only description ("what did you buy"), amount and payment method are required.
+ * Missing fields get sensible defaults: today's date, auto invoice number, supplier "غير محدد",
+ * category "مخزون آخر" (inventory), paid in full.
+ */
 function validatePurchase_(p) {
   var out = {};
-  out['Invoice Number'] = cleanText_(p.invoiceNumber, 60);
-  out['Invoice Date'] = dateCell_(p.invoiceDate);
-  out.Supplier = cleanText_(p.supplier, 120);
-  out.Category = cleanText_(p.category, 60);
+  var blank = function (v) { return v === undefined || v === null || String(v).trim() === ''; };
+  out['Invoice Number'] = cleanText_(p.invoiceNumber, 60) || 'AUTO-' + fmtDate_(now_(), 'yyyyMMdd-HHmmss');
+  out['Invoice Date'] = dateCell_(blank(p.invoiceDate) ? todayStr_() : p.invoiceDate);
+  out.Supplier = cleanText_(p.supplier, 120) || 'غير محدد';
+  out.Category = cleanText_(p.category, 60) || 'مخزون آخر';
   out.Description = cleanText_(p.description, 500);
-  out.Subtotal = round3_(p.subtotal);
+  out.Subtotal = round3_(blank(p.subtotal) ? p.amount : p.subtotal);
   out.Tax = round3_(p.tax);
   out.Discount = round3_(p.discount);
   out.Total = round3_(out.Subtotal + out.Tax - out.Discount);
-  out['Paid Amount'] = round3_(p.paidAmount);
+  out['Paid Amount'] = blank(p.paidAmount) ? out.Total : round3_(p.paidAmount);
   out['Remaining Amount'] = round3_(out.Total - out['Paid Amount']);
-  out['Payment Method'] = cleanText_(p.paymentMethod, 30);
+  out['Payment Method'] = cleanText_(p.paymentMethod, 30) || 'نقد';
   out['Payment Status'] = cleanText_(p.paymentStatus, 30);
-  var isInv = p.isInventory === true || String(p.isInventory).toLowerCase() === 'true' || String(p.isInventory) === 'نعم';
+  var isInv = blank(p.isInventory) ? WC.INVENTORY_CATEGORIES.indexOf(out.Category) >= 0
+    : (p.isInventory === true || String(p.isInventory).toLowerCase() === 'true' || String(p.isInventory) === 'نعم');
   out['Is Inventory'] = isInv ? 'نعم' : 'لا';
   out.Notes = cleanText_(p.notes, 1000);
 
-  if (!out['Invoice Number']) throw new Error('رقم الفاتورة مطلوب.');
   if (!out['Invoice Date']) throw new Error('تاريخ الفاتورة غير صالح.');
-  if (!out.Supplier) throw new Error('اسم المورد مطلوب.');
+  if (!out.Description && out.Supplier === 'غير محدد') throw new Error('اكتب ماذا اشتريت.');
   if (WC.PURCHASE_CATEGORIES.indexOf(out.Category) < 0) throw new Error('تصنيف المشتريات غير صالح.');
   if (out.Subtotal < 0 || out.Tax < 0 || out.Discount < 0) throw new Error('المبالغ لا يمكن أن تكون سالبة.');
   if (out.Total <= 0) throw new Error('إجمالي الفاتورة يجب أن يكون أكبر من صفر.');

@@ -68,8 +68,13 @@ const OUT = path.join(__dirname, '..', 'tests', 'screenshots'); fs.mkdirSync(OUT
   await step('add purchase with attachment', async () => {
     await page.click('#accTabs button[data-tab=acc-purchase]');
     const f = page.locator('#purchaseForm');
-    await f.locator('[name=invoiceNumber]').fill('UI-1'); await f.locator('[name=invoiceDate]').fill('2026-09-15'); await f.locator('[name=supplier]').fill('مورد UI');
-    await f.locator('[name=subtotal]').fill('10'); await f.locator('[name=tax]').fill('0.5'); await f.locator('[name=paidAmount]').fill('10.5');
+    // simple part: what, amount, cash/bank
+    await f.locator('[name=description]').fill('بن 5 كيلو'); await f.locator('[name=subtotal]').fill('10'); await f.locator('[name=invoiceDate]').fill('2026-09-15');
+    await f.locator('.seg button[data-v="تحويل بنكي"]').click();
+    if ((await f.locator('[name=paymentMethod]').inputValue()) !== 'تحويل بنكي') throw new Error('segment did not set the payment method');
+    // optional details stay available
+    await f.locator('details.adv summary').click();
+    await f.locator('[name=invoiceNumber]').fill('UI-1'); await f.locator('[name=supplier]').fill('مورد UI'); await f.locator('[name=tax]').fill('0.5'); await f.locator('[name=paidAmount]').fill('10.5');
     if ((await page.locator('#purTotal').innerText()) !== '10.500') throw new Error('total calc');
     await f.locator('[name=attachment]').setInputFiles({ name: 'inv.png', mimeType: 'image/png', buffer: Buffer.from('png') });
     await f.locator('button[type=submit]').click(); await page.waitForSelector('.toast.ok');
@@ -77,7 +82,7 @@ const OUT = path.join(__dirname, '..', 'tests', 'screenshots'); fs.mkdirSync(OUT
   });
   await step('validation error surfaces (bad attachment type)', async () => {
     const f = page.locator('#purchaseForm');
-    await f.locator('[name=invoiceNumber]').fill('UI-2'); await f.locator('[name=supplier]').fill('x'); await f.locator('[name=subtotal]').fill('1'); await f.locator('[name=paidAmount]').fill('1');
+    await f.locator('[name=description]').fill('x'); await f.locator('[name=subtotal]').fill('1');
     await f.locator('[name=attachment]').setInputFiles({ name: 'a.exe', mimeType: 'application/octet-stream', buffer: Buffer.from('x') });
     await f.locator('button[type=submit]').click(); await page.waitForSelector('.toast.err');
   });
@@ -113,7 +118,8 @@ await step('English mode inside the app translates tabs, forms and stored values
     await page.click('#btnLangApp'); await page.waitForTimeout(150);
     const tabs = await page.locator('#accTabs').innerText(); if (!/Sales upload/.test(tabs) || /رفع/.test(tabs)) throw new Error('tabs: ' + tabs);
     await page.click('#accTabs button[data-tab=acc-purchase]');
-    const opts = await page.locator('#purchaseForm [name=paymentMethod]').innerText(); if (!/Cash/.test(opts)) throw new Error('list values not translated: ' + opts);
+    const opts = await page.locator('#purchaseForm [name=paymentMethod]').evaluate(el => el.textContent); if (!/Cash/.test(opts)) throw new Error('list values not translated: ' + opts);
+    const seg = await page.locator('#purchaseForm .seg').innerText(); if (!/Bank transfer/.test(seg)) throw new Error('segment not translated: ' + seg);
     if ((await page.locator('#purchaseForm [name=paymentMethod]').inputValue()) !== 'نقد') throw new Error('stored value must stay Arabic');
     await page.click('#accTabs button[data-tab=acc-records]');
     await page.waitForFunction(() => /Supplier/.test(document.querySelector('#recordsTableWrap').innerText), null, { timeout: 10000 });
