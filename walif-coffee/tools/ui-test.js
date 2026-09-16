@@ -44,7 +44,7 @@ const OUT = path.join(__dirname, '..', 'tests', 'screenshots'); fs.mkdirSync(OUT
     await page.fill('#loginPass', '1234'); await page.click('#loginBtn');
     await page.waitForSelector('#view-accountant:not(.hidden)');
     if (!(await page.locator('#view-manager').evaluate(e => e.classList.contains('hidden')))) throw new Error('manager view visible to accountant');
-    if (await page.locator('#accTabs button').count() !== 7) throw new Error('tabs');
+    if (await page.locator('#accTabs button').count() !== 6) throw new Error('tabs');
     await page.screenshot({ path: OUT + '/02-accountant-mobile.png', fullPage: true });
   });
   await step('CSV preview + import', async () => {
@@ -66,29 +66,32 @@ const OUT = path.join(__dirname, '..', 'tests', 'screenshots'); fs.mkdirSync(OUT
     await page.click('#btnCancelCsv');
   });
   await step('add purchase with attachment', async () => {
-    await page.click('#accTabs button[data-tab=acc-purchase]');
-    const f = page.locator('#purchaseForm');
-    // simple part: what, amount, cash/bank
-    await f.locator('[name=description]').fill('بن 5 كيلو'); await f.locator('[name=subtotal]').fill('10'); await f.locator('[name=invoiceDate]').fill('2026-09-15');
-    await f.locator('.seg button[data-v="تحويل بنكي"]').click();
+    await page.click('#accTabs button[data-tab=acc-entry]');
+    const f = page.locator('#entryForm');
+    // simple part: what, amount, cash/bank, goods vs expense
+    await f.locator('[name=description]').fill('بن 5 كيلو'); await f.locator('[name=amount]').fill('10'); await f.locator('[name=entryDate]').fill('2026-09-15');
+    await f.locator('.seg[data-seg=paymentMethod] button[data-v="تحويل بنكي"]').click();
     if ((await f.locator('[name=paymentMethod]').inputValue()) !== 'تحويل بنكي') throw new Error('segment did not set the payment method');
     // optional details stay available
     await f.locator('details.adv summary').click();
     await f.locator('[name=invoiceNumber]').fill('UI-1'); await f.locator('[name=supplier]').fill('مورد UI'); await f.locator('[name=tax]').fill('0.5'); await f.locator('[name=paidAmount]').fill('10.5');
-    if ((await page.locator('#purTotal').innerText()) !== '10.500') throw new Error('total calc');
     await f.locator('[name=attachment]').setInputFiles({ name: 'inv.png', mimeType: 'image/png', buffer: Buffer.from('png') });
     await f.locator('button[type=submit]').click(); await page.waitForSelector('.toast.ok');
     if (!/تم حفظ الفاتورة/.test(await toastText(page))) throw new Error(await toastText(page));
   });
   await step('validation error surfaces (bad attachment type)', async () => {
-    const f = page.locator('#purchaseForm');
-    await f.locator('[name=description]').fill('x'); await f.locator('[name=subtotal]').fill('1');
+    const f = page.locator('#entryForm');
+    await f.locator('[name=description]').fill('x'); await f.locator('[name=amount]').fill('1');
     await f.locator('[name=attachment]').setInputFiles({ name: 'a.exe', mimeType: 'application/octet-stream', buffer: Buffer.from('x') });
     await f.locator('button[type=submit]').click(); await page.waitForSelector('.toast.err');
   });
   await step('add expense / payroll / rent', async () => {
-    await page.click('#accTabs button[data-tab=acc-expense]');
-    let f = page.locator('#expenseForm'); await f.locator('[name=amount]').fill('3.250'); await f.locator('[name=description]').fill('ماء'); await f.locator('button[type=submit]').click(); await page.waitForSelector('.toast.ok');
+    await page.click('#accTabs button[data-tab=acc-entry]');
+    let f = page.locator('#entryForm'); await f.locator('[name=attachment]').setInputFiles([]); await f.locator('.seg[data-seg=kind] button[data-v=expense]').click();
+    if (!(await f.locator('[data-kind=expense]').evaluate(el => !el.classList.contains('hidden')))) throw new Error('expense details not shown');
+    await f.locator('[name=amount]').fill('3.250'); await f.locator('[name=description]').fill('ماء'); await f.locator('button[type=submit]').click(); await page.waitForSelector('.toast.ok');
+    if (!/تم حفظ المصروف/.test(await toastText(page))) throw new Error(await toastText(page));
+    if ((await f.locator('[name=kind]').inputValue()) !== 'expense') throw new Error('kind should persist after save');
     await page.click('#accTabs button[data-tab=acc-payroll]');
     f = page.locator('#payrollForm'); await f.locator('[name=employee]').fill('علي'); await f.locator('[name=basicSalary]').fill('250'); await f.locator('[name=advance]').fill('50');
     if ((await page.locator('#payNet').innerText()) !== '200.000') throw new Error('net calc');
@@ -117,10 +120,10 @@ const OUT = path.join(__dirname, '..', 'tests', 'screenshots'); fs.mkdirSync(OUT
 await step('English mode inside the app translates tabs, forms and stored values', async () => {
     await page.click('#btnLangApp'); await page.waitForTimeout(150);
     const tabs = await page.locator('#accTabs').innerText(); if (!/Sales upload/.test(tabs) || /رفع/.test(tabs)) throw new Error('tabs: ' + tabs);
-    await page.click('#accTabs button[data-tab=acc-purchase]');
-    const opts = await page.locator('#purchaseForm [name=paymentMethod]').evaluate(el => el.textContent); if (!/Cash/.test(opts)) throw new Error('list values not translated: ' + opts);
-    const seg = await page.locator('#purchaseForm .seg').innerText(); if (!/Bank transfer/.test(seg)) throw new Error('segment not translated: ' + seg);
-    if ((await page.locator('#purchaseForm [name=paymentMethod]').inputValue()) !== 'نقد') throw new Error('stored value must stay Arabic');
+    await page.click('#accTabs button[data-tab=acc-entry]');
+    const opts = await page.locator('#entryForm [name=paymentMethodAdv]').evaluate(el => el.textContent); if (!/Cash/.test(opts)) throw new Error('list values not translated: ' + opts);
+    const seg = await page.locator('#entryForm .seg[data-seg=paymentMethod]').innerText(); if (!/Bank transfer/.test(seg)) throw new Error('segment not translated: ' + seg);
+    if (!/نقد|تحويل بنكي/.test(await page.locator('#entryForm [name=paymentMethod]').inputValue())) throw new Error('stored value must stay Arabic');
     await page.click('#accTabs button[data-tab=acc-records]');
     await page.waitForFunction(() => /Supplier/.test(document.querySelector('#recordsTableWrap').innerText), null, { timeout: 10000 });
     const tbl = await page.locator('#recordsTableWrap').innerText(); if (!/Paid/.test(tbl)) throw new Error('records not translated: ' + tbl.slice(0, 120));

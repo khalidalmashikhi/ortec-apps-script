@@ -9,7 +9,7 @@ var I18N_EN = {
   'مدير': 'Manager', 'محاسب': 'Accountant', 'جارٍ التحقق…': 'Checking…', 'فشل تسجيل الدخول': 'Sign-in failed', 'تعذر الاتصال': 'Connection failed', 'تعذر الاتصال بالخادم': 'Could not reach the server', 'خطأ غير متوقع': 'Unexpected error',
   'انتهت الجلسة، سجل الدخول مرة أخرى.': 'Session expired, please sign in again.',
   // accountant tabs
-  'رفع المبيعات': 'Sales upload', 'فاتورة مشتريات': 'Purchase invoice', 'مصروف': 'Expense', 'راتب': 'Payroll', 'إيجار': 'Rent', 'سجلاتي': 'My records',
+  'رفع المبيعات': 'Sales upload', 'فاتورة مشتريات': 'Purchase invoice', 'مصروفات': 'Expenses', 'مصروفات ومشتريات': 'Expenses & purchases', 'ماذا اشتريت / دفعت؟ *': 'What did you buy / pay for? *', 'مثال: بن 5 كيلو / فاتورة الكهرباء': 'e.g. 5 kg coffee / electricity bill', 'النوع *': 'Type *', 'بضاعة للمحل': 'Goods for the shop', 'مصروف تشغيلي': 'Operating expense', 'بضاعة للمحل = بن، حليب، أكواب، مواد… (تُحسب في تكلفة البضاعة). مصروف تشغيلي = كهرباء، إنترنت، صيانة، تنظيف…': 'Goods = coffee, milk, cups, supplies… (counted in cost of goods). Operating expense = electricity, internet, maintenance, cleaning…', 'طريقة دفع أخرى': 'Other payment method', 'حفظ': 'Save', 'تم حفظ الفاتورة.': 'Invoice saved.', 'مصروف': 'Expense', 'راتب': 'Payroll', 'إيجار': 'Rent', 'سجلاتي': 'My records',
   'رفع ملف مبيعات Loyverse (CSV)': 'Upload Loyverse sales file (CSV)',
   'اختر ملف CSV المصدَّر من Loyverse، ثم افحصه لعرض المعاينة قبل الاستيراد. الأعمدة تُطابق بالاسم، ولا يُستورد أي سجل مكرر.': 'Choose the CSV exported from Loyverse, then check it to preview before importing. Columns are matched by name and duplicates are never imported.',
   'فحص الملف': 'Check file', 'المعاينة': 'Preview', 'اعتماد واستيراد': 'Confirm & import', 'إلغاء': 'Cancel', 'آخر عمليات الاستيراد': 'Recent imports', 'تحديث': 'Refresh',
@@ -386,16 +386,18 @@ var Acc = (function () {
   function init() {
     if (inited) { loadImports(); return; } inited = true;
     UI.tabs('#accTabs', '.acc-tab', function (id) { if (id === 'acc-records') loadRecords(); });
-    document.querySelectorAll('#view-accountant input[type=date]').forEach(function (i) { if (!i.value && /invoiceDate|expenseDate|withdrawalDate/.test(i.name)) i.value = App.today; });
+    document.querySelectorAll('#view-accountant input[type=date]').forEach(function (i) { if (!i.value && /entryDate|withdrawalDate/.test(i.name)) i.value = App.today; });
     var ym = App.today.slice(0, 7); ['#payrollForm [name=month]', '#rentForm [name=period]'].forEach(function (s) { $(s).value = ym; });
     $('#btnPreviewCsv').addEventListener('click', previewCsv);
     $('#btnImportCsv').addEventListener('click', importCsv);
     $('#btnCancelCsv').addEventListener('click', function () { $('#csvPreview').classList.add('hidden'); csvText = ''; });
     $('#btnRefreshImports').addEventListener('click', loadImports);
-    $('#purchaseForm').addEventListener('input', purchaseTotals); purchaseTotals();
     $('#payrollForm').addEventListener('input', payrollNet);
-    $('#purchaseForm').addEventListener('submit', function (e) { submit(e, 'api_addPurchase', true, function (r) { return t('تم حفظ الفاتورة. الإجمالي') + ' ' + UI.money(r.total) + ' ' + t('والمتبقي') + ' ' + UI.money(r.remaining); }); });
-    $('#expenseForm').addEventListener('submit', function (e) { submit(e, 'api_addExpense', true, function () { return t('تم حفظ المصروف.'); }); });
+    $('#entryForm').addEventListener('submit', submitEntry);
+    var ef = $('#entryForm');
+    ef.kind.addEventListener('change', function () { ef.querySelectorAll('[data-kind]').forEach(function (g) { g.classList.toggle('hidden', g.dataset.kind !== ef.kind.value); }); });
+    ef.paymentMethodAdv.addEventListener('change', function () { ef.paymentMethod.value = ef.paymentMethodAdv.value; ef.paymentMethod.dispatchEvent(new Event('change', { bubbles: true })); });
+    ef.paymentMethod.addEventListener('change', function () { ef.paymentMethodAdv.value = ef.paymentMethod.value; });
     $('#payrollForm').addEventListener('submit', function (e) { submit(e, 'api_addPayroll', false, function (r) { return t('تم حفظ الراتب. الصافي') + ' ' + UI.money(r.netSalary); }); });
     $('#rentForm').addEventListener('submit', function (e) { submit(e, 'api_addRent', true, function () { return t('تم حفظ الإيجار.'); }); });
     $('#withdrawalForm').addEventListener('submit', function (e) { submit(e, 'api_addWithdrawal', true, function (r) { return t('تم حفظ السحب.') + (r.attachmentUrl ? ' 📎' : ''); }); });
@@ -403,10 +405,23 @@ var Acc = (function () {
     $('#btnLoadRecords').addEventListener('click', loadRecords);
     loadImports();
   }
-  function purchaseTotals() {
-    var f = $('#purchaseForm'), total = (+f.subtotal.value || 0) + (+f.tax.value || 0) - (+f.discount.value || 0), paid = f.paidAmount.value === '' ? total : (+f.paidAmount.value || 0);
-    $('#purTotal').textContent = UI.money(total); $('#purRemaining').textContent = UI.money(total - paid);
-    f.paymentStatus.value = paid >= total - 0.0005 && total > 0 ? 'مدفوعة' : (paid > 0 ? 'مدفوعة جزئيًا' : 'غير مدفوعة');
+  /** One form for both purchases (goods for the shop) and operating expenses: routes to the right API. */
+  function submitEntry(e) {
+    e.preventDefault();
+    var form = e.target, d = UI.formData(form), isPurchase = d.kind !== 'expense';
+    var payload = isPurchase
+      ? { invoiceDate: d.entryDate, description: d.description, subtotal: d.amount, paymentMethod: d.paymentMethod, invoiceNumber: d.invoiceNumber, supplier: d.supplier, category: d.category, tax: d.tax, discount: d.discount, paidAmount: d.paidAmount, notes: d.notes }
+      : { expenseDate: d.entryDate, description: d.description, amount: d.amount, paymentMethod: d.paymentMethod, expenseType: d.expenseType, payee: d.payee, paymentStatus: d.paymentStatus, notes: d.notes };
+    var fileInput = form.querySelector('input[type=file][name=attachment]');
+    UI.readFileBase64(fileInput && (fileInput.files[0] || fileInput._cameraFile) ? (fileInput.files[0] || fileInput._cameraFile) : null).then(function (att) {
+      return App.api(isPurchase ? 'api_addPurchase' : 'api_addExpense', payload, att);
+    }).then(function (r) {
+      UI.toast(isPurchase ? t('تم حفظ الفاتورة.') + ' ' + UI.money(r.total) : t('تم حفظ المصروف.'), 'ok');
+      var kind = form.kind.value, pm = form.paymentMethod.value;
+      form.reset(); UI.fillLists(form); form.kind.value = kind; form.paymentMethod.value = pm; form.paymentMethodAdv.value = pm;
+      form.kind.dispatchEvent(new Event('change')); form.paymentMethod.dispatchEvent(new Event('change'));
+      form.entryDate.value = App.today; form.querySelectorAll('[data-camera-name]').forEach(function (x) { x.textContent = ''; });
+    }).catch(UI.err);
   }
   function payrollNet() {
     var f = $('#payrollForm');
@@ -421,10 +436,10 @@ var Acc = (function () {
     }).then(function (r) {
       UI.toast(okMsg(r), 'ok');
       form.reset(); UI.fillLists(form);
-      form.querySelectorAll('input[type=date]').forEach(function (i) { if (/invoiceDate|expenseDate|withdrawalDate/.test(i.name)) i.value = App.today; });
+      form.querySelectorAll('input[type=date]').forEach(function (i) { if (/entryDate|withdrawalDate/.test(i.name)) i.value = App.today; });
       form.querySelectorAll('[data-camera-name]').forEach(function (x) { x.textContent = ''; });
       form.querySelectorAll('input[type=month]').forEach(function (i) { i.value = App.today.slice(0, 7); });
-      if (form.id === 'purchaseForm') purchaseTotals(); if (form.id === 'payrollForm') payrollNet();
+      if (form.id === 'payrollForm') payrollNet();
     }).catch(UI.err);
   }
   // ---- CSV
