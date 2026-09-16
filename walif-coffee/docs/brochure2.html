@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>Cafe Books — OrTec</title>
+<style>
+  @page { size: A4; margin: 0; }
+  :root { --teal: #45b3a5; --teal-d: #2c8d80; --ink: #16221f; --muted: #5f6f6c; --soft: #eaf6f4; --soft2: #f6fbfa; --line: #d5e6e3; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Noto Naskh Arabic", "Segoe UI", Tahoma, "DejaVu Sans", sans-serif; color: var(--ink); font-size: 13pt; line-height: 1.6; direction: rtl; }
+  .page { width: 210mm; height: 297mm; padding: 16mm 15mm 14mm; page-break-after: always; position: relative; overflow: hidden; }
+  .page:last-child { page-break-after: auto; }
+  .logo { width: 210px; height: auto; display: block; }
+  .logo.sm { width: 120px; }
+  .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8mm; }
+  .top .tag { color: var(--muted); font-size: 11pt; letter-spacing: .5px; }
+  /* cover */
+  .cover { background: #fff; }
+  .hero { position: relative; height: 178mm; }
+  .blob { position: absolute; left: -4mm; top: 26mm; width: 104mm; height: 104mm; border-radius: 50%; background: radial-gradient(circle at 40% 40%, #bfe6df 0%, var(--soft) 60%, #ffffff 100%); }
+  .phone { position: absolute; left: 10mm; top: 8mm; width: 70mm; border-radius: 22px; box-shadow: 0 30px 60px rgba(44,141,128,.28); border: 6px solid #1f2b28; background: #1f2b28; }
+  .headline { position: absolute; right: 0; top: 4mm; width: 88mm; }
+  .headline h1 { font-size: 40pt; line-height: 1.05; margin: 0 0 6px; color: var(--teal-d); font-family: "Segoe UI", "Liberation Sans", Arial, sans-serif; font-weight: 800; letter-spacing: -1px; }
+  .headline h2 { font-size: 20pt; margin: 0 0 10px; font-weight: 700; line-height: 1.35; }
+  .headline p { font-size: 13pt; color: var(--muted); margin: 0; }
+  .chips { position: absolute; right: 0; bottom: 0; display: flex; flex-direction: column; gap: 8px; width: 88mm; }
+  .chip { background: var(--soft); border-radius: 999px; padding: 8px 16px; font-weight: 700; color: var(--teal-d); display: flex; align-items: center; gap: 10px; font-size: 12.5pt; }
+  .chip i { width: 12px; height: 12px; border-radius: 50%; background: var(--teal); display: inline-block; }
+  .foot { position: absolute; bottom: 9mm; left: 15mm; right: 15mm; display: flex; justify-content: space-between; align-items: center; color: var(--muted); font-size: 9.5pt; border-top: 1px solid var(--line); padding-top: 5px; }
+  .foot .ltr { direction: ltr; }
+  /* sections */
+  h2.sec { font-size: 24pt; color: var(--teal-d); margin: 0 0 3mm; line-height: 1.2; }
+  .lead { color: var(--muted); font-size: 12.5pt; margin: 0 0 6mm; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; }
+  .grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4mm; }
+  .card { background: var(--soft2); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
+  .card svg { width: 30px; height: 30px; stroke: var(--teal); fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; margin-bottom: 4px; }
+  .card b { display: block; font-size: 13pt; color: var(--ink); margin-bottom: 1px; }
+  .card span { color: var(--muted); font-size: 11pt; line-height: 1.45; display: block; }
+  .shot { border-radius: 14px; border: 1px solid var(--line); box-shadow: 0 14px 34px rgba(44,141,128,.16); width: 100%; display: block; }
+  .cap { text-align: center; color: var(--muted); font-size: 10.5pt; margin-top: 4px; }
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; margin: 2mm 0 6mm; }
+  .step { text-align: center; }
+  .step .n { width: 46px; height: 46px; border-radius: 50%; background: var(--teal); color: #fff; font-weight: 800; font-size: 20pt; line-height: 46px; margin: 0 auto 6px; font-family: "Liberation Sans", Arial, sans-serif; }
+  .step b { display: block; font-size: 14pt; }
+  .step span { color: var(--muted); font-size: 11pt; }
+  .pills { display: flex; flex-wrap: wrap; gap: 6px 8px; }
+  .pill { background: var(--soft); color: var(--teal-d); border-radius: 999px; padding: 4px 13px; font-size: 11.5pt; font-weight: 700; }
+  .contact { background: linear-gradient(135deg, var(--teal-d), var(--teal)); color: #fff; border-radius: 18px; padding: 18px 22px; display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+  .contact b { display: block; font-size: 17pt; margin-bottom: 2px; }
+  .contact .l { font-size: 12.5pt; line-height: 1.7; }
+  .contact .ltr { direction: ltr; unicode-bidi: embed; font-family: "Liberation Sans", Arial, sans-serif; }
+  .contact svg { filter: brightness(0) invert(1); }
+  .own { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4mm; margin: 2mm 0 8mm; }
+  .own .k { text-align: center; background: var(--soft2); border: 1px solid var(--line); border-radius: 14px; padding: 14px 8px; }
+  .own .k big { display: block; font-size: 26pt; font-weight: 800; color: var(--teal-d); font-family: "Liberation Sans", Arial, sans-serif; line-height: 1.1; }
+  .own .k span { font-size: 11pt; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<!-- ================= COVER ================= -->
+<section class="page cover">
+  <div class="top">
+    <svg class="logo" viewBox="0 0 430 205" xmlns="http://www.w3.org/2000/svg" direction="ltr" style="direction:ltr" aria-label="OrTec Original Technology">
+      <g fill="none" stroke="#45b3a5" stroke-width="15" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M40 50 A46 46 0 1 0 90 50"/><line x1="65" y1="30" x2="65" y2="84"/>
+        <path d="M134 132 V98 Q134 80 156 80"/>
+        <line x1="176" y1="38" x2="300" y2="38"/><line x1="238" y1="60" x2="238" y2="132"/>
+        <line x1="274" y1="106" x2="326" y2="106"/><path d="M326 106 A27 27 0 1 0 319 125"/>
+        <path d="M395 87 A27 27 0 1 0 395 125"/>
+      </g>
+      <circle cx="418" cy="125" r="8" fill="#45b3a5"/>
+      <text x="426" y="172" text-anchor="end" fill="#45b3a5" font-family="'Century Gothic','Liberation Sans','Segoe UI',Arial,sans-serif" font-size="24" font-weight="300" letter-spacing=".5">Original Technology</text>
+      <text x="426" y="200" text-anchor="start" direction="rtl" fill="#45b3a5" font-family="'Noto Naskh Arabic','DejaVu Sans',Tahoma,sans-serif" font-size="23">الأصلي للتكنولوجيا</text>
+    </svg>
+    <div class="tag">CAFE BOOKS · 2026</div>
+  </div>
+  <div class="hero">
+    <div class="headline">
+      <h1>Cafe Books</h1>
+      <h2>حسابات كافيهك… واضحة على هاتفك كل صباح</h2>
+      <p>نظام محاسبة للكافيهات يربط مبيعات الكاشير بالمشتريات والمصروفات، ويعطيك الربح الحقيقي بلا جداول ولا محاسب إضافي.</p>
+    </div>
+    <div class="blob"></div>
+    <img class="phone" src="shots/m-dashboard.png" alt="لوحة التحكم على الهاتف">
+    <div class="chips">
+      <div class="chip"><i></i>بلا اشتراك شهري</div>
+      <div class="chip"><i></i>بياناتك في حساب Google الخاص بك</div>
+      <div class="chip"><i></i>عربي / إنجليزي · هاتف وكمبيوتر</div>
+      <div class="chip"><i></i>جاهز خلال يوم عمل</div>
+    </div>
+  </div>
+  <div class="foot"><span>OrTec · الأصلي للتكنولوجيا</span><span class="ltr">Cafe Books · Powered by Google Workspace</span></div>
+</section>
+
+<!-- ================= WHY ================= -->
+<section class="page">
+  <div class="top"><h2 class="sec">لماذا Cafe Books؟</h2><svg class="logo sm" viewBox="0 0 430 140" direction="ltr" style="direction:ltr"><g fill="none" stroke="#45b3a5" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"><path d="M40 50 A46 46 0 1 0 90 50"/><line x1="65" y1="30" x2="65" y2="84"/><path d="M134 132 V98 Q134 80 156 80"/><line x1="176" y1="38" x2="300" y2="38"/><line x1="238" y1="60" x2="238" y2="132"/><line x1="274" y1="106" x2="326" y2="106"/><path d="M326 106 A27 27 0 1 0 319 125"/><path d="M395 87 A27 27 0 1 0 395 125"/></g><circle cx="418" cy="125" r="8" fill="#45b3a5"/></svg></div>
+  <p class="lead">أنت تعرف مبيعاتك من الكاشير. لكن كم ربحت فعلًا بعد البن والحليب والرواتب والإيجار؟ وأين ذهب النقد؟</p>
+  <div class="grid3">
+    <div class="card"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><b>ربح حقيقي</b><span>صافي المبيعات − التكلفة − المصروفات، يوميًا وشهريًا.</span></div>
+    <div class="card"><svg viewBox="0 0 24 24"><path d="M12 2v20M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg><b>الربح غير النقد</b><span>حركة نقدية منفصلة، فتعرف ما في الصندوق فعلًا.</span></div>
+    <div class="card"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zM8 9h8M8 13h8M8 17h5"/></svg><b>استيراد من الكاشير</b><span>ملف Loyverse يُقرأ في ثوانٍ، بلا تكرار ولا إدخال يدوي.</span></div>
+    <div class="card"><svg viewBox="0 0 24 24"><path d="M3 8h4l2-3h6l2 3h4v11H3z"/><circle cx="12" cy="13" r="3.5"/></svg><b>الإيصالات مصوّرة</b><span>صورة الفاتورة من الهاتف تُحفظ وتُؤرشف مع القيد.</span></div>
+    <div class="card"><svg viewBox="0 0 24 24"><path d="M3 6h18v12H3zM3 7l9 6 9-6"/></svg><b>تقرير كل صباح</b><span>ملخص اليوم السابق مع PDF يصل إلى بريدك تلقائيًا.</span></div>
+    <div class="card"><svg viewBox="0 0 24 24"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"/><path d="M9 12l2 2 4-4"/></svg><b>صلاحيات وتدقيق</b><span>محاسب يسجّل فقط، ومدير يرى كل شيء. كل حركة مسجّلة.</span></div>
+  </div>
+  <div style="margin-top:7mm">
+    <img class="shot" src="shots/m-desktop.png" alt="لوحة التحكم">
+    <div class="cap">لوحة المدير: 14 مؤشرًا وفلاتر بالفترة والفرع والكاشير والصنف</div>
+  </div>
+  <div class="foot"><span>OrTec · الأصلي للتكنولوجيا</span><span class="ltr">Cafe Books</span></div>
+</section>
+
+<!-- ================= HOW + FEATURES ================= -->
+<section class="page">
+  <div class="top"><h2 class="sec">كيف يعمل؟</h2><svg class="logo sm" viewBox="0 0 430 140" direction="ltr" style="direction:ltr"><g fill="none" stroke="#45b3a5" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"><path d="M40 50 A46 46 0 1 0 90 50"/><line x1="65" y1="30" x2="65" y2="84"/><path d="M134 132 V98 Q134 80 156 80"/><line x1="176" y1="38" x2="300" y2="38"/><line x1="238" y1="60" x2="238" y2="132"/><line x1="274" y1="106" x2="326" y2="106"/><path d="M326 106 A27 27 0 1 0 319 125"/><path d="M395 87 A27 27 0 1 0 395 125"/></g><circle cx="418" cy="125" r="8" fill="#45b3a5"/></svg></div>
+  <div class="steps">
+    <div class="step"><div class="n">1</div><b>صدّر</b><span>ملف المبيعات من Loyverse</span></div>
+    <div class="step"><div class="n">2</div><b>ارفع وسجّل</b><span>المبيعات، المشتريات، المصروفات، الرواتب، الإيجار</span></div>
+    <div class="step"><div class="n">3</div><b>اطّلع</b><span>لوحة التحكم، PDF، بريد يومي</span></div>
+  </div>
+  <div class="grid2" style="grid-template-columns: 1fr 1.05fr; align-items:start">
+    <div>
+      <h2 class="sec" style="font-size:17pt">المميزات</h2>
+      <div class="pills">
+        <span class="pill">11 نوع تقرير PDF</span><span class="pill">أرشيف الإيصالات بالصور</span><span class="pill">أفضل الأصناف وأقلها</span><span class="pill">المبيعات بالساعة</span>
+        <span class="pill">مقارنة الأيام والشهور</span><span class="pill">تعدد الفروع ونقاط البيع</span><span class="pill">تعديل وإلغاء بسبب</span><span class="pill">سجل عمليات كامل</span>
+        <span class="pill">هوية محلك وألوانك</span><span class="pill">يعمل كتطبيق على الهاتف</span><span class="pill">عربي / إنجليزي</span><span class="pill">تقرير يومي على البريد</span>
+      </div>
+      <div style="margin-top:8mm"><img class="shot" src="shots/m-report.png" alt="تقرير الربح والخسارة"><div class="cap">تقرير الربح والخسارة</div></div>
+    </div>
+    <div><img class="shot" src="shots/m-preview.png" alt="معاينة الاستيراد" style="width:82%;margin:0 auto"><div class="cap">معاينة كاملة قبل الاستيراد، ولا تكرار أبدًا</div></div>
+  </div>
+  <div class="foot"><span>OrTec · الأصلي للتكنولوجيا</span><span class="ltr">Cafe Books</span></div>
+</section>
+
+<!-- ================= PACKAGE + CONTACT ================= -->
+<section class="page">
+  <div class="top"><h2 class="sec">ماذا تحصل عليه؟</h2><svg class="logo sm" viewBox="0 0 430 140" direction="ltr" style="direction:ltr"><g fill="none" stroke="#45b3a5" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"><path d="M40 50 A46 46 0 1 0 90 50"/><line x1="65" y1="30" x2="65" y2="84"/><path d="M134 132 V98 Q134 80 156 80"/><line x1="176" y1="38" x2="300" y2="38"/><line x1="238" y1="60" x2="238" y2="132"/><line x1="274" y1="106" x2="326" y2="106"/><path d="M326 106 A27 27 0 1 0 319 125"/><path d="M395 87 A27 27 0 1 0 395 125"/></g><circle cx="418" cy="125" r="8" fill="#45b3a5"/></svg></div>
+  <div class="own">
+    <div class="k"><big>1</big><span>يوم عمل للتثبيت والتسليم</span></div>
+    <div class="k"><big>2</big><span>حسابان: مدير ومحاسب</span></div>
+    <div class="k"><big>0</big><span>اشتراك شهري</span></div>
+    <div class="k"><big>100%</big><span>البيانات ملكك في حسابك</span></div>
+  </div>
+  <div class="grid2">
+    <div class="card"><b>التثبيت والتهيئة</b><span>في حساب Google الخاص بك، بهوية محلك (الاسم، الشعار، الألوان، العملة) وبريد التقرير اليومي.</span></div>
+    <div class="card"><b>التدريب</b><span>جلسة للمحاسب والمالك، حضوريًا أو عن بُعد، مع دليل مصوّر.</span></div>
+    <div class="card"><b>بياناتك السابقة</b><span>استيراد مبيعات الأشهر الماضية إن رغبت.</span></div>
+    <div class="card"><b>الدعم والتحديثات</b><span>دعم فني في فترة التشغيل الأولى، وتحديثات لا تمس بياناتك.</span></div>
+  </div>
+  <h2 class="sec" style="font-size:17pt;margin-top:8mm">المتطلبات</h2>
+  <div class="pills" style="margin-bottom:10mm"><span class="pill">حساب Gmail</span><span class="pill">كاشير Loyverse أو أي كاشير يصدّر CSV</span><span class="pill">أي هاتف أو كمبيوتر</span></div>
+  <div class="card" style="text-align:center;margin-bottom:6mm;background:var(--soft);border-color:var(--soft)"><b style="font-size:15pt;color:var(--teal-d)">اطلب عرضًا توضيحيًا مجانيًا لمدة 20 دقيقة على بياناتك أنت</b><span>نستورد ملف كاشيرك ونعرض لك أرباحك الحقيقية في الجلسة نفسها.</span></div>
+  <div class="contact">
+    <div class="l"><b>OrTec — الأصلي للتكنولوجيا</b>لطلب عرض توضيحي أو التعاقد<br><span class="ltr">khalid98115159@gmail.com</span><br>الهاتف / واتساب: <span class="ltr">________________</span></div>
+    <svg class="logo" style="width:150px" viewBox="0 0 430 140" direction="ltr"><g fill="none" stroke="#45b3a5" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"><path d="M40 50 A46 46 0 1 0 90 50"/><line x1="65" y1="30" x2="65" y2="84"/><path d="M134 132 V98 Q134 80 156 80"/><line x1="176" y1="38" x2="300" y2="38"/><line x1="238" y1="60" x2="238" y2="132"/><line x1="274" y1="106" x2="326" y2="106"/><path d="M326 106 A27 27 0 1 0 319 125"/><path d="M395 87 A27 27 0 1 0 395 125"/></g><circle cx="418" cy="125" r="8" fill="#45b3a5"/></svg>
+  </div>
+  <div class="foot"><span>OrTec · الأصلي للتكنولوجيا</span><span class="ltr">Cafe Books · Google Apps Script · Google Sheets · Google Drive</span></div>
+</section>
+</body>
+</html>
