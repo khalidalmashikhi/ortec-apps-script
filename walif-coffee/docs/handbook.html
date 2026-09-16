@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>دليل نظام Cafe Books / وليف كوفي</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm 20mm 16mm; }
+  body { font-family: "Noto Naskh Arabic", "Noto Sans Arabic", "Segoe UI", Tahoma, Arial, sans-serif; color: #1f2d27; font-size: 12.5pt; line-height: 1.75; direction: rtl; }
+  h1 { color: #2f4b3e; font-size: 26pt; margin: 0 0 4px; }
+  h2 { color: #2f4b3e; font-size: 17pt; margin: 22px 0 8px; border-bottom: 2px solid #e2d9c2; padding-bottom: 4px; page-break-after: avoid; }
+  h3 { color: #3d6152; font-size: 13.5pt; margin: 14px 0 4px; page-break-after: avoid; }
+  p { margin: 4px 0 8px; }
+  ul, ol { margin: 4px 0 10px; padding-inline-start: 22px; }
+  li { margin-bottom: 3px; }
+  table { border-collapse: collapse; width: 100%; margin: 6px 0 12px; font-size: 11.5pt; page-break-inside: avoid; }
+  th, td { border: 1px solid #dcd5c3; padding: 6px 8px; text-align: right; vertical-align: top; }
+  th { background: #2f4b3e; color: #f0ead8; }
+  td.ltr, .ltr { direction: ltr; text-align: left; font-family: Consolas, "Courier New", monospace; font-size: 10.5pt; word-break: break-all; }
+  .cover { background: #2f4b3e; color: #f0ead8; padding: 40px 32px; border-radius: 16px; text-align: center; margin-bottom: 24px; }
+  .cover h1 { color: #f0ead8; font-size: 30pt; }
+  .cover .en { font-family: Georgia, "Times New Roman", serif; letter-spacing: 8px; font-size: 40pt; margin-top: 10px; }
+  .cover .sub { opacity: .85; font-size: 12pt; margin-top: 6px; }
+  .box { background: #f8f5ee; border: 1px solid #e2d9c2; border-radius: 10px; padding: 10px 14px; margin: 8px 0 12px; page-break-inside: avoid; }
+  .warn { background: #fff5da; border-color: #e8d59a; }
+  .kv td:first-child { width: 34%; font-weight: bold; background: #f8f5ee; }
+  .shots { display: flex; gap: 14px; justify-content: center; align-items: flex-start; margin: 8px 0 14px; }
+  .shots img { width: 30%; border: 1px solid #dcd5c3; border-radius: 10px; }
+  .muted { color: #6b7a72; font-size: 11pt; }
+  .pb { page-break-before: always; }
+  a { color: #3d6152; }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="en">WALIF</div>
+  <h1>وليف كوفي — النظام المالي والتشغيلي</h1>
+  <div class="sub">دليل آلية النظام، الروابط، وطريقة نقله وتثبيته لزبائن آخرين (نسخة Cafe Books القابلة لإعادة البيع)</div>
+  <div class="sub">الإصدار 1.3 · سبتمبر 2026 · Google Apps Script + Google Sheets + Google Drive</div>
+</div>
+
+<h2>1. ما هو النظام</h2>
+<p>نظام محاسبي وتشغيلي مبسّط لمحلات القهوة يعمل بالكامل داخل حساب Google الخاص بالمالك، بلا خوادم ولا اشتراكات. يستورد مبيعات نظام الكاشير Loyverse من ملف CSV، ويُسجّل المشتريات والمصروفات والرواتب والإيجار مع صور الإيصالات، ويحسب الربح والخسارة والحركة النقدية، ويُصدر تقارير PDF، ويرسل تقريرًا يوميًا بالبريد. الواجهة عربية/إنجليزية وتعمل على الهاتف والكمبيوتر.</p>
+<div class="shots">
+  <img src="s-login.png" alt="صفحة الدخول">
+  <img src="s-mobile.png" alt="لوحة المدير على الهاتف">
+  <img src="s-records.png" alt="سجلات المحاسب بالإنجليزية">
+</div>
+
+<h2>2. مكوّنات النظام وأين تعيش البيانات</h2>
+<table class="kv">
+  <tr><td>الواجهة (Web App)</td><td>صفحة ويب منشورة من Apps Script، تُفتح من أي متصفح أو تُضاف إلى شاشة الهاتف كتطبيق.</td></tr>
+  <tr><td>قاعدة البيانات</td><td>ملف Google Sheets واحد يحتوي 11 ورقة: Sales_Raw، Sales_Imports، Purchases، Expenses، Payroll، Rent، Users، Settings، Audit_Log، Error_Log، Dashboard_Data.</td></tr>
+  <tr><td>المرفقات والتقارير</td><td>مجلد في Google Drive باسم "&lt;اسم المحل&gt; Accounting" وفيه Invoices/السنة/الشهر وReports/السنة/الشهر.</td></tr>
+  <tr><td>كلمات المرور والجلسات</td><td>Script Properties (لا تُخزَّن في الجدول): Hash + Salt لكلمات المرور، ورموز جلسات عشوائية تنتهي بعد 8 ساعات.</td></tr>
+  <tr><td>الكود المصدري</td><td>مستودع GitHub، مجلد walif-coffee (20 ملف خادم .gs و6 ملفات واجهة .html + المثبّت وأدوات الاختبار).</td></tr>
+</table>
+
+<h2>3. الحسابات والصلاحيات</h2>
+<table>
+  <tr><th>الدور</th><th>اسم المستخدم الافتراضي</th><th>كلمة المرور الافتراضية</th><th>الصلاحيات</th></tr>
+  <tr><td>الإدارة</td><td class="ltr">admin</td><td class="ltr">2026</td><td>لوحة التحكم الكاملة، كل السجلات، الفلاتر، PDF، البريد، التعديل والإلغاء بسبب، الإعدادات، الهوية، كلمات المرور، سجل العمليات، تصفير البيانات.</td></tr>
+  <tr><td>المحاسب</td><td class="ltr">ac</td><td class="ltr">1234</td><td>رفع CSV ومعاينته واستيراده، إضافة فاتورة مشتريات/مصروف/راتب/إيجار مع المرفقات، مشاهدة سجلاته فقط. لا حذف، لا إعدادات، لا كلمات مرور.</td></tr>
+</table>
+<div class="box warn">يجب تغيير كلمتي المرور الافتراضيتين من الإعدادات قبل تسليم النظام لأي زبون. يظهر تنبيه أصفر للمدير حتى يتم ذلك.</div>
+
+<h2>4. آلية العمل اليومية</h2>
+<h3>أ. المحاسب</h3>
+<ol>
+  <li>تصدير تقرير المبيعات بالأصناف من Loyverse بصيغة CSV (الأعمدة الـ22 القياسية).</li>
+  <li>رفع الملف → "فحص الملف": يظهر الفترة، عدد الصفوف، الفواتير الفريدة، الكمية، الإجمالي، الخصومات، الصافي، تكلفة البضاعة، الربح، الضرائب، والصفوف المرفوضة والمكررة.</li>
+  <li>"اعتماد واستيراد": يُحفظ فقط الجديد. مفتاح التكرار: Store + Receipt number + Date + SKU + Item + Quantity + Net sales. رفع الملف نفسه مرة أخرى يستورد صفرًا.</li>
+  <li>تسجيل فاتورة المشتريات (رقم، تاريخ، مورد، تصنيف، مبالغ، طريقة وحالة الدفع، هل هي مخزون) مع تصوير الإيصال من كاميرا الهاتف. الفاتورة المكررة (نفس المورد والرقم والتاريخ والإجمالي) تُرفض.</li>
+  <li>تسجيل المصروف، الراتب (الصافي = الأساسي + البدل + الإضافي − الخصم − السلفة)، والإيجار.</li>
+</ol>
+<h3>ب. المدير</h3>
+<ul>
+  <li>14 بطاقة مؤشرات، فلاتر (اليوم/أمس/7 أيام/الشهر/الشهر السابق/فترة مخصصة، الفرع، POS، الكاشير، التصنيف، الصنف)، 15 جدولًا، 6 رسوم بيانية.</li>
+  <li>11 نوع تقرير PDF: يومي، أسبوعي، شهري، فترة مخصصة، مشتريات، مصروفات، رواتب، إيجارات، ربح وخسارة، حركة نقدية، أرشيف الإيصالات بالصور.</li>
+  <li>التقرير اليومي بالبريد تلقائيًا (الساعة قابلة للضبط، تقرير اليوم السابق كاملًا افتراضيًا) مع PDF مرفق وملخص في نص الرسالة.</li>
+  <li>تعديل أو إلغاء أي سجل مع تسجيل السبب؛ لا حذف نهائي (ACTIVE / CANCELLED).</li>
+  <li>سجل العمليات: الدخول الناجح والفاشل، الرفع، الاستيراد، الإضافة، التعديل، الإلغاء، التقارير، البريد، الإعدادات.</li>
+</ul>
+
+<h2>5. القواعد المالية</h2>
+<div class="box">
+<p><b>قائمة الربح والخسارة:</b> صافي المبيعات (Net sales) − تكلفة البضاعة المباعة (Cost of goods من Loyverse) = مجمل الربح، مع مطابقته بمجمل ربح Loyverse. صافي الربح التشغيلي = مجمل الربح − (المصروفات + الرواتب + الإيجار). <b>فواتير المخزون لا تُخصم مرة ثانية</b> لأن تكلفة الجزء المباع منها داخل Cost of goods.</p>
+<p><b>الحركة النقدية:</b> صافي المبيعات − المشتريات المدفوعة − المصروفات المدفوعة − الرواتب المدفوعة − الإيجار المدفوع. الفرق بين الربح والنقد يُعرض صراحة في لوحة المدير.</p>
+<p><b>المرتجعات</b> تُسجَّل بالسالب؛ الفواتير الملغاة (Cancelled/Void) تُرفض عند الاستيراد. العملة الافتراضية OMR بثلاث منازل عشرية، والتوقيت Asia/Muscat.</p>
+</div>
+
+<h2 class="pb">6. الروابط (نسخة وليف كوفي)</h2>
+<table class="kv">
+  <tr><td>رابط النظام (Web App)</td><td class="ltr">https://script.google.com/macros/s/AKfycbwhSQEeciR7L3oPs7RYzokIzAc-UF0yWvFgRb0ZO1d68ngV96XOihgPQkU6xigLiLMrMA/exec</td></tr>
+  <tr><td>ملف Google Sheets</td><td class="ltr">https://docs.google.com/spreadsheets/d/1HfsBDCDY5Wyy0A18fnG_VGYO0xYC9tjMMOkQN9e2nxQ/edit</td></tr>
+  <tr><td>مشروع Apps Script</td><td class="ltr">https://script.google.com/home/projects/1497l_eS8nXnw6G9U4sPE6ID8T1DwJMu3uYcttxSJLqoJ1GfAX_Xg1GMO/edit</td></tr>
+  <tr><td>حساب Google المالك</td><td class="ltr">khalid98115159@gmail.com</td></tr>
+  <tr><td>الكود المصدري (GitHub)</td><td class="ltr">https://github.com/khalidalmashikhi/ortec-apps-script/tree/claude/nice-tesla-lc2heo/walif-coffee</td></tr>
+</table>
+
+<h2>7. النسخة القابلة لإعادة البيع (Cafe Books)</h2>
+<p>الكود واحد لكل الزبائن. الهوية تُضبط من داخل النظام (الإعدادات → هوية المحل): الاسم بالعربية والإنجليزية، كلمة الشعار بالحرفين، السطر الصغير، اللونان، رمز العملة، أو رابط صورة شعار. تنعكس على صفحة الدخول والشريط العلوي وتقارير PDF والبريد وأسماء الملفات ومجلد Drive. الافتراضي العام "Cafe Books / دفاتر الكافيه" بدون بريد ولا بيانات.</p>
+<table class="kv">
+  <tr><td>القالب الرئيسي (لا يُستخدم مباشرة، يُنسخ)</td><td class="ltr">https://docs.google.com/spreadsheets/d/1Dsu0PZW_TvavfA2MX7RU-JDnnljtqENdQQt_68LpqQ4/edit</td></tr>
+  <tr><td>مشروع Apps Script للقالب</td><td class="ltr">https://script.google.com/home/projects/1VyEBzQPV4FumhDPoWIsvqbP6VTkch9SWUhBNHjeFuw8gDas23nqS_pbc/edit</td></tr>
+</table>
+
+<h3>خطوات تثبيت نسخة لزبون جديد (نحو 5 دقائق)</h3>
+<ol>
+  <li>افتح القالب الرئيسي → <b>File → Make a copy</b> → سمِّها باسم الزبون (مثل "Bean Bar Accounting").
+      <br><span class="muted">لتكون النسخة في حساب الزبون نفسه: شارك القالب معه (Viewer يكفي) ليعمل هو "Make a copy" من حسابه؛ الكود يُنسخ مع الملف تلقائيًا.</span></li>
+  <li>في النسخة: <b>Extensions → Apps Script</b> → <b>Deploy → New deployment</b> → النوع Web app → Execute as: <b>Me</b> → Who has access: <b>Anyone</b> → Deploy → انسخ رابط <span class="ltr">/exec</span>.</li>
+  <li>افتح الرابط ووافق على الصلاحيات مرة واحدة (Sheets, Drive, Docs, Gmail). تُبنى الأوراق والمجلدات والحسابات تلقائيًا خلال نصف دقيقة.</li>
+  <li>ادخل <span class="ltr">admin / 2026</span> → الإعدادات → <b>هوية المحل</b> → احفظ. ثم بريد التقرير اليومي وساعته → احفظ (يُنشأ المشغّل تلقائيًا). ثم غيّر كلمتي المرور.</li>
+  <li>سلّم الزبون: رابط النظام، اسمي المستخدم وكلمتي المرور، ورابط ملف Sheets (اختياري).</li>
+</ol>
+<div class="box">
+<p><b>نقل نسخة قائمة إلى حساب آخر:</b> افتح ملف Sheets → File → Make a copy إلى الحساب الجديد (أو شاركه ثم انسخه من هناك). النسخة تحمل الكود والبيانات؛ يلزم فقط نشر Web App جديد من الحساب الجديد (الخطوتان 2 و3) وإعادة إدخال كلمات المرور (لأنها في Script Properties ولا تُنسخ). المرفقات القديمة تبقى في Drive الحساب الأصلي بروابطها.</p>
+</div>
+
+<h3>تحديث الكود لاحقًا لكل الزبائن</h3>
+<ul>
+  <li>الطريقة الأسهل للزبون: من محرر Apps Script الخاص به يلصق ملف <span class="ltr">installer/Installer.gs</span> في Code.gs ومحتوى <span class="ltr">installer/appsscript.json</span> في المانيفست، يشغّل <span class="ltr">installWalifCoffee</span> (بعد تفعيل Apps Script API من script.google.com/home/usersettings)، ثم Deploy → Manage deployments → New version.</li>
+  <li>الطريقة الأسرع لك: <span class="ltr">clasp push</span> بمعرّف مشروع كل زبون (ملف .clasp.json)، ثم <span class="ltr">clasp deploy -i &lt;deploymentId&gt;</span> ليبقى الرابط نفسه.</li>
+  <li>التحديث لا يمس البيانات ولا الهوية ولا كلمات المرور.</li>
+</ul>
+
+<h2>8. الحدود والملاحظات التشغيلية</h2>
+<ul>
+  <li>كل نسخة تعمل بحصص Google المجانية لحساب مالكها: نحو 100 رسالة بريد يوميًا لحساب Gmail، و6 دقائق كحد أقصى لكل تنفيذ. الاستيراد المعتاد (آلاف الصفوف) يستغرق ثوانٍ.</li>
+  <li>المرفقات: PDF أو JPG أو PNG بحد 5 ميغابايت للملف.</li>
+  <li>تقرير أرشيف الإيصالات يدرج حتى 60 صورة في الملف الواحد؛ ملفات PDF المرفقة تظهر بروابطها فقط.</li>
+  <li>الوصول "Anyone" يعني أن الرابط يفتح صفحة الدخول لأي شخص يملكه، والحماية بكلمات المرور داخل النظام؛ لذلك غيّر الكلمات الافتراضية ولا تشارك الرابط إلا مع المستخدمين.</li>
+  <li>النسخ الاحتياطي: ملف Sheets يحتفظ بسجل الإصدارات (File → Version history)، ويمكن عمل نسخة دورية بـ Make a copy.</li>
+</ul>
+
+<h2>9. الملفات المرجعية داخل الكود</h2>
+<table>
+  <tr><th>الملف</th><th>الدور</th></tr>
+  <tr><td class="ltr">Config.gs / Utils.gs</td><td>الإعدادات والثوابت، التاريخ بتوقيت مسقط، الأرقام، منع Formula Injection، الهوية brand_()</td></tr>
+  <tr><td class="ltr">Setup.gs / Auth.gs / Audit.gs</td><td>التهيئة التلقائية، المستخدمون والجلسات، سجل العمليات والأخطاء، تصفير البيانات</td></tr>
+  <tr><td class="ltr">SalesImport.gs</td><td>تحليل CSV (BOM/اقتباسات)، مطابقة الأعمدة بالاسم، المعاينة، الاستيراد المجمّع، منع التكرار</td></tr>
+  <tr><td class="ltr">Purchases / Expenses / Payroll / Rent / Records / Attachments</td><td>التحقق على الخادم، الحفظ داخل قفل، المرفقات في Drive، الإلغاء والتعديل بسبب</td></tr>
+  <tr><td class="ltr">Analytics.gs / Reports.gs / EmailReports.gs / Settings.gs / Deploy.gs</td><td>المحرك المالي، التقارير وPDF، البريد والمشغّل اليومي، الإعدادات والهوية، النشر عبر API</td></tr>
+  <tr><td class="ltr">Index / Login / Accountant / Dashboard / Styles / Scripts (.html)</td><td>الواجهة العربية/الإنجليزية المتجاوبة مع القاموس الثنائي اللغة</td></tr>
+  <tr><td class="ltr">tools/ + tests/</td><td>محاكي Apps Script، 48 اختبار خادم، اختبار متصفح كامل، ملف CSV نموذجي بالأعمدة الـ22</td></tr>
+</table>
+
+<p class="muted" style="margin-top:20px">أُعدّ هذا الدليل في 16 سبتمبر 2026. عند تغيير الروابط أو الإصدار، حدّث القسمين 6 و7.</p>
+</body>
+</html>
